@@ -9,12 +9,18 @@
 			"path": "src/Ex 1"
 		},
 		{
+			"name": "Ex2",
 			"path": "src/Ex 2"
+		},
+		{
+			"name": "Ex3",
+			"path": "src/Ex 3"
 		}
 	],
 	"settings": {
 		"files.associations": {
-			"string": "cpp"
+			"string": "cpp",
+			"vector": "cpp"
 		}
 	}
 }

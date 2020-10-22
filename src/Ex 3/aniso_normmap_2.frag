@@ -50,6 +50,11 @@ uniform float repeat;
 // texture sampler
 uniform sampler2D tex;
 
+/*
+// normal map sampler
+uniform sampler2D normap;
+*/
+
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
 uniform vec3 specularColor;

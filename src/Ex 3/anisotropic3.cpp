@@ -292,7 +292,7 @@ int main()
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
     // we create the Shader Program used for objects (which presents different subroutines we can switch)
-    Shader illumination_shader = Shader("anisotropic_1.vert", "anisotropic_1.frag");
+    Shader illumination_shader = Shader("aniso_normmap_2.vert", "aniso_normmap_2.frag");
     // we parse the Shader Program to search for the number and names of the subroutines. 
     // the names are placed in the shaders vector
     SetupShader(illumination_shader.Program);
@@ -304,9 +304,9 @@ int main()
     Model planeModel("../../models/plane.obj");
 
     // we load the images and store them in a vector
-    textureID.push_back(LoadTexture("../../textures/UV_Grid_Sm.png"));
-    textureID.push_back(LoadTexture("../../textures/SoilCracked.png"));
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_basecolor.jpg"));
+    textureID.push_back(LoadTexture("../../textures/SoilCracked.png"));
+    textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_normal.jpg"));
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
     glm::mat4 projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
@@ -364,9 +364,11 @@ int main()
          // We render a plane under the objects. We apply the Blinn-Phong model only, and we do not apply the rotation applied to the other objects.
         illumination_shader.Use();
         // we search inside the Shader Program the name of the subroutine, and we get the numerical index
-        GLuint index = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "BlinnPhong_ML_TX");
+        GLuint index_diffuse = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Lambert");
+        GLuint index_specular = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "BlinnPhong");
+        GLuint plane_indices[2] =  {index_diffuse, index_specular};
         // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, 1, &index);
+        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, 2, &plane_indices[0]);
 
         // we determine the position in the Shader Program of the uniform variables
         GLint textureLocation = glGetUniformLocation(illumination_shader.Program, "tex");
