@@ -24,7 +24,9 @@ enum Camera_Movement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    UP,
+    DOWN
 };
 
 // Default camera settings
@@ -87,6 +89,11 @@ public:
             this->Position -= this->Right * velocity;
         if (direction == RIGHT)
             this->Position += this->Right * velocity;
+        if (direction == UP)
+            this->Position += this->WorldUp * velocity;
+        if (direction == DOWN)
+            this->Position -= this->WorldUp * velocity;
+
     }
 
     //////////////////////////////////////////

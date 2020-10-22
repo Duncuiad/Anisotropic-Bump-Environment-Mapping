@@ -8,6 +8,9 @@
 			"name": "Ex1",
 			"path": "src/Ex 1"
 		},
+		{
+			"path": "src/Ex 2"
+		}
 	],
 	"settings": {
 		"files.associations": {

@@ -100,6 +100,7 @@ positive Z axis points "outside" the screen
 // number of lights in the scene
 #define NR_LIGHTS 3
 
+
 // dimensions of application's window
 GLuint screenWidth = 800, screenHeight = 600;
 
@@ -125,6 +126,16 @@ void PrintCurrentShader(int subroutine);
 
 // load image from disk and create an OpenGL texture
 GLint LoadTexture(const char* path);
+
+// CUSTOM OVERLOAD
+// ImGui::RadioButton is commented FIXME in source imgui_widget.cpp
+// Issue is it only accepts int*, int as parameters, while we need GLuint to read and write with [GLuint current_subroutine]
+// The developer asks to overload function with template type template<T>, having T* and T as parameters, "but I'm not sure how we would expose it.."
+// @Overload
+namespace ImGui {
+    bool RadioButton(const char* label, GLuint* v, GLuint v_button);
+}
+
 
 // we initialize an array of booleans for each keybord key
 bool keys[1024];
@@ -158,17 +169,16 @@ Camera camera(glm::vec3(0.0f, 0.0f, 7.0f), GL_TRUE);
 // pointlights positions
 glm::vec3 lightPositions[] = {
     glm::vec3(5.0f, 10.0f, 10.0f),
-    glm::vec3(-5.0f, 10.0f, 10.0f),
-    glm::vec3(5.0f, 10.0f, -10.0f),
+//    glm::vec3(-5.0f, 10.0f, 10.0f),
+//    glm::vec3(5.0f, 10.0f, -10.0f),
 };
 
 // specular and ambient components
 GLfloat specularColor[] = {1.0,1.0,1.0};
 GLfloat ambientColor[] = {0.1,0.1,0.1};
 // weights for the diffusive, specular and ambient components
-GLfloat Kd = 0.8f;
-GLfloat Ks = 0.5f;
-GLfloat Ka = 0.1f;
+GLfloat Ka = 0.2f, Kd = 0.8f, Ks = 0.5f;
+//GLfloat lightingComponents[] = {0.2f, 0.8f, 0.5f}; // {Ka, Kd, Ks};
 // shininess coefficient for Blinn-Phong shader
 GLfloat shininess = 25.0f;
 
@@ -176,6 +186,9 @@ GLfloat shininess = 25.0f;
 GLfloat alpha = 0.2f;
 // Fresnel reflectance at 0 degree (Schlik's approximation)
 GLfloat F0 = 0.9f;
+
+// directional roughnesses for Ward shader [to be pointed to by ImGui sliders]
+GLfloat alphaX = 0.1f, alphaY = 1.0f;
 
 // vector for the textures IDs
 vector<GLint> textureID;
@@ -209,7 +222,7 @@ int main()
         glfwTerminate();
         return -1;
     }
-    glfwSetWindowPos(guiWindow, screenWidth, 0);
+    glfwSetWindowPos(guiWindow, screenWidth, 30);
     glfwMakeContextCurrent(guiWindow);
 
   // we create the application's window
@@ -220,7 +233,7 @@ int main()
         glfwTerminate();
         return -1;
     }
-    glfwSetWindowPos(window, 0, 0);
+    glfwSetWindowPos(window, 0, 30);
     glfwMakeContextCurrent(window);
 
     // we put in relation the window and the callbacks
@@ -267,7 +280,7 @@ int main()
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
     // we create the Shader Program used for objects (which presents different subroutines we can switch)
-    Shader illumination_shader = Shader("13_illumination_models_ML_TX.vert", "14_illumination_models_ML_TX.frag");
+    Shader illumination_shader = Shader("anisotropic_1.vert", "anisotropic_1.frag");
     // we parse the Shader Program to search for the number and names of the subroutines. 
     // the names are placed in the shaders vector
     SetupShader(illumination_shader.Program);
@@ -354,6 +367,8 @@ int main()
         GLint shineLocation = glGetUniformLocation(illumination_shader.Program, "shininess");
         GLint alphaLocation = glGetUniformLocation(illumination_shader.Program, "alpha");
         GLint f0Location = glGetUniformLocation(illumination_shader.Program, "F0");
+        GLint alphaXLocation = glGetUniformLocation(illumination_shader.Program, "alphaX");
+        GLint alphaYLocation = glGetUniformLocation(illumination_shader.Program, "alphaY");
             
         // we assign the value to the uniform variables
         glUniform3fv(matAmbientLocation, 1, ambientColor);
@@ -361,6 +376,9 @@ int main()
         glUniform1f(shineLocation, shininess);
         glUniform1f(alphaLocation, alpha);
         glUniform1f(f0Location, F0);
+        glUniform1f(alphaXLocation, alphaX);
+        glUniform1f(alphaYLocation, alphaY);
+
         // for the plane, we make it mainly Lambertian, by setting at 0 the specular component
         glUniform1f(kaLocation, 0.0f);
         glUniform1f(kdLocation, 0.6f);
@@ -408,8 +426,8 @@ int main()
         glBindTexture(GL_TEXTURE_2D, textureID[0]);
 
         // we set other parameters for the objects
-        glUniform1f(ksLocation, Ka);
-        glUniform1f(ksLocation, Kd);
+        glUniform1f(kaLocation, Ka);
+        glUniform1f(kdLocation, Kd);
         glUniform1f(ksLocation, Ks);
         // we change texture and repetitions for the objects 
         glUniform1i(textureLocation, 0);
@@ -483,23 +501,41 @@ int main()
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
-            static float f = 0.0f;
-            static int counter = 0;
+            
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Scene GUI");
 
-            ImGui::Text("Mouse Position: (%f, %f)", lastX, lastY);               // Display some text (you can use a format strings too)
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            ImGui::Text("Shaders");
+            for (GLuint i = 0; i < shaders.size(); i++) 
+            {
+                ImGui::RadioButton(shaders[i].c_str(), &current_subroutine, i);
+            }
+            
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
+            ImGui::NewLine();
+
+            ImGui::Text("Lighting Components");
+            ImGui::SliderFloat("Ambient", &Ka, 0.0, 1.0, "Ka = %.2f", ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Diffuse", &Kd, 0.0, 1.0, "Kd = %.2f", ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Specular", &Ks, 0.0, 1.0, "Ks = %.2f", ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Shininess", &shininess, 1.0, 1000.0, "n = %.2f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("alpha", &alpha, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("alpha X", &alphaX, 0.01f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp); 
+            ImGui::SliderFloat("alpha Y", &alphaY, 0.01f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+            if (ImGui::Button("Swap X and Y alphas"))    // Buttons return true when clicked (most widgets return true when edited/activated)
+            {
+                float temp = alphaX;
+                alphaX = alphaY;
+                alphaY = temp;
+            }
+
+            ImGui::NewLine();
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Text("Application delta_time %.3f ms/frame (%.1f FPS)", deltaTime * 1000, deltaTime == 0 ? 0 : 1/deltaTime);
+
+            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
             ImGui::End();
         }
 
@@ -644,7 +680,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         wireframe=!wireframe;
 
     // if SPACE is pressed, we activate/deactivate the mouse cursor
-    if(key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+    if(key == GLFW_KEY_E && action == GLFW_PRESS)
     {
         if (cursorActive) { // let the application read the mouse again
             glfwSetCursorPosCallback(window, mouse_callback);
@@ -699,6 +735,11 @@ void apply_camera_movements()
         camera.ProcessKeyboard(LEFT, deltaTime);
     if(keys[GLFW_KEY_D])
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if(keys[GLFW_KEY_SPACE])
+        camera.ProcessKeyboard(UP, deltaTime);
+    if(keys[GLFW_KEY_LEFT_SHIFT])
+        camera.ProcessKeyboard(DOWN, deltaTime);
+    
 }
 
 //////////////////////////////////////////
@@ -726,4 +767,16 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     // we pass the offset to the Camera class instance in order to update the rendering
     camera.ProcessMouseMovement(xoffset, yoffset);
 
+}
+
+// ImGui::RadioButton is commented FIXME in source imgui_widget.cpp
+// Issue is it only accepts int*, int as parameters, while we need GLuint to read and write with [GLuint current_subroutine]
+// The developer asks to overload function with template type template<T>, having T* and T as parameters, "but I'm not sure how we would expose it.."
+// @Overload
+bool ImGui::RadioButton(const char* label, GLuint* v, GLuint v_button)
+{
+    const bool pressed = RadioButton(label, *v == v_button);
+    if (pressed)
+        *v = v_button;
+    return pressed;
 }

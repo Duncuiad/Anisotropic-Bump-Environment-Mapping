@@ -8,4 +8,4 @@ set compilerflags=/Od /Zi /EHsc /MT
 set includedirs=/I../../include
 set imGuiSrc=../../include/imgui/imgui*.cpp
 set linkerflags=/LIBPATH:../../libs/win glfw3.lib assimp-vc142-mt.lib zlib.lib IrrXML.lib gdi32.lib user32.lib Shell32.lib
-cl.exe %compilerflags% %includedirs% ../../include/glad/glad.c %imGuiSrc% anisotropic1.cpp /Fe:anisotropic1.exe /link %linkerflags% 
+cl.exe %compilerflags% %includedirs% ../../include/glad/glad.c %imGuiSrc% anisotropic2.cpp /Fe:anisotropic2.exe /link %linkerflags% 

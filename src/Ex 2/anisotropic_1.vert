@@ -21,7 +21,7 @@ Universita' degli Studi di Milano
 #version 410 core
 
 // number of lights in the scene
-#define NR_LIGHTS 1
+#define NR_LIGHTS 3
 
 // vertex position in object coordinates
 layout (location = 0) in vec3 position;
