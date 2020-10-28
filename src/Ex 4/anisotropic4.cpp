@@ -238,7 +238,7 @@ int main()
     glfwMakeContextCurrent(guiWindow);
 
   // we create the application's window
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Anisotropic with tangent space calculations", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Anisotropic with (only) normal mapping", nullptr, nullptr);
     if (!window)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -292,7 +292,7 @@ int main()
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
     // we create the Shader Program used for objects (which presents different subroutines we can switch)
-    Shader illumination_shader = Shader("aniso_tangspace_2.vert", "aniso_tangpspace_2.frag");
+    Shader illumination_shader = Shader("aniso_normonly_3.vert", "aniso_normonly_3.frag");
     // we parse the Shader Program to search for the number and names of the subroutines. 
     // the names are placed in the shaders vector
     SetupShader(illumination_shader.Program);
@@ -372,6 +372,8 @@ int main()
 
         // we determine the position in the Shader Program of the uniform variables
         GLint textureLocation = glGetUniformLocation(illumination_shader.Program, "tex");
+        GLint normalLocation = glGetUniformLocation(illumination_shader.Program, "normMap");
+        GLint hasNormalLocation = glGetUniformLocation(illumination_shader.Program, "hasNormalMap");
         GLint repeatLocation = glGetUniformLocation(illumination_shader.Program, "repeat");
         GLint matAmbientLocation = glGetUniformLocation(illumination_shader.Program, "ambientColor");
         GLint matSpecularLocation = glGetUniformLocation(illumination_shader.Program, "specularColor");
@@ -415,6 +417,7 @@ int main()
         // we use a different texture used and the number of repetitions for the plane
         glUniform1i(textureLocation, 1);
         glUniform1f(repeatLocation, 80.0f);
+        glUniform1i(hasNormalLocation, GL_FALSE);
 
         // we create the transformation matrix
         // we reset to identity at each frame
@@ -439,16 +442,24 @@ int main()
         // we activate the desired subroutines using the indices (this is where shaders swapping happens)
         glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, countActiveSU, &indices[0]);
 
+        // Textures and Normal Maps
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID[0]);
+
+        // we change texture for the objects 
+        glUniform1i(textureLocation, 0);
+        glUniform1f(repeatLocation, repeat);
+
+        // normal map
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, textureID[2]);
+        glUniform1i(normalLocation, 2);
+        glUniform1i(hasNormalLocation, GL_TRUE);
 
         // we set other parameters for the objects
         glUniform1f(kaLocation, Ka);
         glUniform1f(kdLocation, Kd);
         glUniform1f(ksLocation, Ks);
-        // we change texture and repetitions for the objects 
-        glUniform1i(textureLocation, 0);
-        glUniform1f(repeatLocation, repeat);
 
         // SPHERE
         /*

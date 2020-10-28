@@ -16,6 +16,10 @@
 			"name": "Ex3",
 			"path": "src/Ex 3"
 		}
+		{
+			"name": "Ex4",
+			"path": "src/Ex 4"
+		}
 	],
 	"settings": {
 		"files.associations": {

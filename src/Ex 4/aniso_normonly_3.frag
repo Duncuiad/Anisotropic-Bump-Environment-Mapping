@@ -31,15 +31,10 @@ const float PI = 3.14159265359;
 out vec4 colorFrag;
 
 // array with lights incidence directions (calculated in vertex shader, interpolated by rasterization)
-in vec3 lightDirs[NR_LIGHTS];
-
-// the transformed normal, tangent, bitangent have been calculated per-vertex in the vertex shader
-in vec3 vNormal;
-in vec3 vTangent;
-in vec3 vBitangent;
+in vec3 tLightDirs[NR_LIGHTS];
 
 // vector from fragment to camera (in view coordinate)
-in vec3 vViewPosition;
+in vec3 tViewDirection;
 
 // interpolated texture coordinates
 in vec2 interp_UV;
@@ -50,10 +45,9 @@ uniform float repeat;
 // texture sampler
 uniform sampler2D tex;
 
-/*
 // normal map sampler
-uniform sampler2D normap;
-*/
+uniform sampler2D normMap;
+uniform bool hasNormalMap;
 
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
@@ -101,17 +95,16 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
 
     vec4 color = vec4(0.0);
 
-    // normalization of the per-fragment normal
-    vec3 N = normalize(vNormal);
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
 
         // Lambert coefficient
-        float NdotL = max(dot(L,N), 0.0);
+        float NdotL = dot(N,L);
 
         color += Kd * NdotL * surfaceColor;
     }
@@ -129,17 +122,16 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
-    // normalization of the per-fragment normal
-    vec3 N = normalize(vNormal);
-    
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
+
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
 
         // cosine angle between direction of light and normal
-        float NdotL = max(dot(L,N), 0.0);
+        float NdotL = dot(N,L);
 
         color += Kd * NdotL * surfaceColor;
     }
@@ -152,32 +144,34 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
 subroutine(specular_model)
 vec4 BlinnPhong() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
+
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+
     // the specular component
     vec4 specular = vec4(0.0);
 
-    // normalization of the per-fragment normal
-    vec3 N = normalize(vNormal);
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
 
         // cosine angle between direction of light and normal
-        float NdotL = max(dot(L,N), 0.0);
+        float NdotL = dot(N,L);
 
         // if the lambert coefficient is positive, then I can calculate the specular component
         if(NdotL > 0.0)
         {
             // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( vViewPosition );
+            vec3 V = normalize( tViewDirection );
 
             // in the Blinn-Phong model we do not use the reflection vector, but the half vector
             vec3 H = normalize(L + V);
 
             // we use H to calculate the specular component
-            float specAngle = max(dot(H, N), 0.0);
+            float specAngle = max(H.z, 0.0); // in tangent space, N is (0, 0, 1), so H.z == HdotN
             // shininess application to the specular component
             float blinn_phong = pow(specAngle, shininess);
 
@@ -209,20 +203,22 @@ float G1(float angle, float alpha)
 subroutine(specular_model)
 vec4 GGX() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-    // normalization of the per-fragment normal
-    vec3 N = normalize(vNormal);
+
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
 
     // we initialize the final color
     vec3 color = vec3(0.0);
+
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
     
         // cosine angle between direction of light and normal
-        float NdotL = max(dot(N, L), 0.0);
+        float NdotL = max(dot(N,L), 0.0); // in tangent space, N is (0, 0, 1);
 
         // we initialize the specular component
         vec3 specular = vec3(0.0);
@@ -231,7 +227,7 @@ vec4 GGX() // this name is the one which is detected by the SetupShaders() funct
         if(NdotL > 0.0)
         {
             // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( vViewPosition );
+            vec3 V = normalize( tViewDirection );
 
             // half vector
             vec3 H = normalize(L + V);
@@ -278,30 +274,31 @@ subroutine(specular_model)
 vec4 HeidrichSeidel() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
 
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+
     // ambient component can be calculated at the beginning
     vec4 color = vec4(0.0);
 
-    // normalization of the per-fragment normal and tangent
-    vec3 N = normalize(vNormal);
-    vec3 T = normalize(vTangent);
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
+
     // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-    vec3 V = normalize(vViewPosition);
-    float TdotV = dot(T,V);
+    vec3 V = normalize(tViewDirection);
+    float TdotV = V.x; // in tangent space, T is (1, 0, 0)
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
 
         // cosine angle between direction of light and normal
-        float NdotL = max(dot(L,N), 0.0);
+        float NdotL = max(dot(N,L), 0.0);
 
         // if the lambert coefficient is positive, then I can calculate the specular component
         if(NdotL > 0.0)
         {
             // cosine angle between the tangent and the direction of light
-            float TdotL = dot(T,L);
+            float TdotL = L.x; // in tangent space, T is (1, 0, 0)
             // cosine angle between the direction of light and the curve normal chosen by the model
             float LdotNP = sqrt(1 - TdotL*TdotL); // <L,N'>
             // analogous to the BlinnPhong component, but R is calculated
@@ -325,22 +322,21 @@ subroutine(specular_model)
 vec4 Ward() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
 
-    // normalization of the per-fragment normal, tangent and bitangent
-    vec3 N = normalize(vNormal);
-    vec3 T = normalize(vTangent);
-    vec3 B = normalize(vBitangent);
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
 
     // we initialize the final color
     vec3 color = vec3(0.0);
+
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
     {
         // normalization of the per-fragment light incidence direction
-        vec3 L = normalize(lightDirs[i].xyz);
+        vec3 L = normalize(tLightDirs[i]);
     
         // cosine angle between direction of light and normal
-        float NdotL = max(dot(N, L), 0.0);
+        float NdotL = max(dot(N,L), 0.0);
 
         // we initialize the specular component
         vec3 specular = vec3(0.0);
@@ -349,16 +345,17 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
         if(NdotL > 0.0)
         {
             // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( vViewPosition );
+            vec3 V = normalize( tViewDirection );
 
             // half vector
             vec3 H = normalize(L + V);
 
             // we calculate the cosines and parameters to be used in the different parts of the BRDF
-            float NdotH = dot(N, H);
-            float TdotH = dot(T, H);
-            float BdotH = dot(B, H);
-            float NdotV = max(dot(N, V), 0.0);
+            // all calculations are in tangent space
+            float NdotH = dot(N,H);
+            float TdotH = H.x;
+            float BdotH = H.y;
+            float NdotV = max(dot(N,V), 0.0);
 
             // TdotH squared, weighted by alpha X
             float wTdotH_sqd = TdotH/alphaX;
