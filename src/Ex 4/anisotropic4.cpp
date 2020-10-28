@@ -202,6 +202,9 @@ GLfloat F0 = 0.9f;
 // directional roughnesses for Ward shader [to be pointed to by ImGui sliders]
 GLfloat alphaX = 0.1f, alphaY = 1.0f;
 
+// directional shininess(es) for Ashikhmin-Shirley model
+GLfloat nX = 1.0f, nY = 10.0f;
+
 // vector for the textures IDs
 vector<GLint> textureID;
 
@@ -385,6 +388,8 @@ int main()
         GLint f0Location = glGetUniformLocation(illumination_shader.Program, "F0");
         GLint alphaXLocation = glGetUniformLocation(illumination_shader.Program, "alphaX");
         GLint alphaYLocation = glGetUniformLocation(illumination_shader.Program, "alphaY");
+        GLint nXLocation = glGetUniformLocation(illumination_shader.Program, "nX");
+        GLint nYLocation = glGetUniformLocation(illumination_shader.Program, "nY");
             
         // we assign the value to the uniform variables
         glUniform3fv(matAmbientLocation, 1, ambientColor);
@@ -394,6 +399,8 @@ int main()
         glUniform1f(f0Location, F0);
         glUniform1f(alphaXLocation, alphaX);
         glUniform1f(alphaYLocation, alphaY);
+        glUniform1f(nXLocation, nX);
+        glUniform1f(nYLocation, nY);
 
         // for the plane, we make it mainly Lambertian, by setting at 0 the specular component
         glUniform1f(kaLocation, 0.0f);
@@ -568,9 +575,30 @@ int main()
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Shirley"))
+                {
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("GGX"))
                 {
                     ImGui::SliderFloat("alpha", &alpha, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Ashikhmin-Shirley"))
+                {
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SliderFloat("X-shininess", &nX, 1.0, 1000.0, "nX = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp); 
+                    ImGui::SliderFloat("Y-shininess", &nY, 1.0, 1000.0, "nY = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp); 
+                    if (ImGui::Button("Swap X and Y shininess"))    // Buttons return true when clicked (most widgets return true when edited/activated)
+                    {
+                        float temp = nX;
+                        nX = nY;
+                        nY = temp;
+                    }
                     ImGui::TreePop();
                 }
                 

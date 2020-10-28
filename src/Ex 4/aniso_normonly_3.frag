@@ -69,6 +69,11 @@ uniform float F0; // fresnel reflectance at normal incidence
 uniform float alphaX; // rugosity along the tangent vector
 uniform float alphaY; // rugosity along the bitangent vector
 
+// uniforms for Ashikhmin-Shirley model
+// uniform float F0 fresnel reflectance at normal incidence is under GGX
+uniform float nX;
+uniform float nY;
+
 ////////////////////////////////////////////////////////////////////
 
 // the "type" of the Subroutine
@@ -112,6 +117,7 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
     return color/PI;
 }
 
+////////////////////////////////////////////////////////////////////
 // a subroutine for the Lambert model for multiple lights and texturing
 subroutine(diffuse_model)
 vec4 Lambert() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
@@ -138,6 +144,49 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
 
     return color;
 }
+
+////////////////////////////////////////////////////////////////////
+// calculation for Shirley model
+float ShirleyLobe(float NdotK)
+{
+    float base = 1.0 - (NdotK/2.0);
+    return 1.0 - pow(base, 5.0);
+}
+
+////////////////////////////////////////////////////////////////////
+// a subroutine for the Shirley model for diffuse component
+subroutine(diffuse_model)
+vec4 Shirley() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
+{
+    // we repeat the UVs and we sample the texture
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    vec4 surfaceColor = texture(tex, repeated_Uv);
+
+    vec4 color = vec4(Ka*ambientColor,1.0);
+
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
+    vec3 V = normalize(tViewDirection);
+
+    float NdotV = dot(N,V);
+    float Vfactor = 28.0 * (1 - F0) * ShirleyLobe(NdotV) / 23.0 / PI;
+
+    //for all the lights in the scene
+    for(int i = 0; i < NR_LIGHTS; i++)
+    {
+        // normalization of the per-fragment light incidence direction
+        vec3 L = normalize(tLightDirs[i]);
+
+        // cosine angle between direction of light and normal
+        float NdotL = max(dot(N,L), 0.0);
+
+        float diffusive = Vfactor * ShirleyLobe(NdotL);
+
+        color += Kd * NdotL * surfaceColor * diffusive;
+    }
+
+    return color;
+}
+
 
 //////////////////////////////////////////
 // a subroutine for the Blinn-Phong model for multiple lights and texturing
@@ -266,6 +315,79 @@ vec4 GGX() // this name is the one which is detected by the SetupShaders() funct
         }
     }
     return vec4(color,1.0);
+}
+
+//////////////////////////////////////////
+// A subroutine for anisotropic specular component, Ashikhmin-Shirley model
+subroutine(specular_model)
+vec4 AshikhminShirley()
+{
+
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+
+    // we initialize the final color
+    vec3 color = vec3(0.0);
+
+    vec3 N = hasNormalMap ? 2 * texture(normMap, repeated_Uv).xyz - 1 : vec3(0.0, 0.0, 1.0);
+
+    //for all the lights in the scene
+    for(int i = 0; i < NR_LIGHTS; i++)
+    {
+        // normalization of the per-fragment light incidence direction
+        vec3 L = normalize(tLightDirs[i]);
+    
+        // cosine angle between direction of light and normal
+        float NdotL = max(dot(N,L), 0.0);
+
+        // we initialize the specular component
+        vec3 specular = vec3(0.0);
+
+        // if the cosine of the angle between direction of light and normal is positive, then I can calculate the specular component
+        if(NdotL > 0.0)
+        {
+            // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
+            vec3 V = normalize( tViewDirection );
+
+            // half vector
+            vec3 H = normalize(L + V);
+
+            // we calculate the cosines and parameters to be used in the different parts of the BRDF
+            // all calculations are in tangent space
+            float NdotH = dot(N,H);
+            float TdotH = H.x;
+            float BdotH = H.y;
+            float NdotV = max(dot(N,V), 0.0);
+            float HdotV = dot(H,V); // == dot(H,L) and it is always positive (when H is defined)
+
+            // TdotH squared, weighted by alpha X
+            float wTdotH_sqd = TdotH * TdotH * nX;
+
+            // BdotH squared, weighted by alpha Y
+            float wBdotH_sqd = BdotH * BdotH * nY;
+
+            // Fresnel reflectance F (approx Schlick)
+            vec3 F = vec3(pow(1.0 - HdotV, 5.0));
+            F *= (1.0 - F0);
+            F += F0;
+
+            float denom_cosines = max(NdotV, NdotL) * HdotV;
+            float normCoeff = sqrt((nX+1.0)*(nY+1.0)) / 8.0 / PI;
+
+            float exponent = (wTdotH_sqd + wBdotH_sqd) / (1.0 - (NdotH*NdotH));
+
+            // we put everything together for the specular component
+            specular = vec3(Ks * normCoeff * pow(NdotH, exponent) * F / denom_cosines);
+
+            // the rendering equation is:
+            //integral of: BRDF * Li * (cosine angle between N and L)
+            // BRDF in our case is Ward
+            // Li is considered as equal to 1: light is white, and we have not applied attenuation. With colored lights, and with attenuation, the code must be modified and the Li factor must be multiplied to finalColor
+            color += specular*NdotL;
+        }
+
+    }
+    return vec4(color,1.0);
+
 }
 
 //////////////////////////////////////////
