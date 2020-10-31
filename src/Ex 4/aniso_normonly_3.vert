@@ -84,7 +84,7 @@ void main(){
   // light incidence directions for all the lights (in view coordinate)
   for (int i=0;i<NR_LIGHTS;i++)
   {
-    vec4 lightPos = viewMatrix  * vec4(lights[i], 1.0);;
+    vec4 lightPos = viewMatrix  * vec4(lights[i], 1.0);
     tLightDirs[i] = iTBN * (lightPos.xyz - mvPosition.xyz);
   }
 

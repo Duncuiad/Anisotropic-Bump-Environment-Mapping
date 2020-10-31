@@ -55,6 +55,7 @@ positive Z axis points "outside" the screen
 #endif
 // Std. Includes
 #include <string>
+#include <map>
 
 // Loader for OpenGL extensions
 // http://glad.dav1d.de/
@@ -103,7 +104,6 @@ positive Z axis points "outside" the screen
 // custom max number of subroutine uniforms
 #define MY_MAX_SUB_UNIF 32
 
-
 // dimensions of application's window
 GLuint screenWidth = 800, screenHeight = 600;
 
@@ -128,7 +128,7 @@ vector<int*> compatible_subroutines;
 // a vector for all the shader subroutine uniforms names
 vector<std::string> sub_uniforms_names;
 // a vector for all the shader subroutines names used and swapped in the application
-vector<std::string> subroutines_names;
+map<int, std::string> subroutines_names;
 
 // the name of the subroutines are searched in the shaders, and placed in the shaders vector (to allow shaders swapping)
 void SetupShader(int shader_program);
@@ -148,6 +148,8 @@ namespace ImGui {
     bool RadioButton(const char* label, GLuint* v, GLuint v_button);
 }
 
+// calculate tangent space rotation mapping via normal mapping
+glm::vec3 RotationQuaternion(glm::vec3 perturbedNormal);
 
 // we initialize an array of booleans for each keybord key
 bool keys[1024];
@@ -202,11 +204,20 @@ GLfloat F0 = 0.9f;
 // directional roughnesses for Ward shader [to be pointed to by ImGui sliders]
 GLfloat alphaX = 0.1f, alphaY = 1.0f;
 
+// directional shininess(es) for Ashikhmin-Shirley model
+GLfloat nX = 1.0f, nY = 10.0f;
+
 // vector for the textures IDs
 vector<GLint> textureID;
 
 // UV repetitions
 GLfloat repeat = 1.0f;
+
+/*
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+TODO:
+1) DELETE bool hasNormalMap. Here and in the fragment shader
+*/
 
 /////////////////// MAIN function ///////////////////////
 int main()
@@ -238,7 +249,7 @@ int main()
     glfwMakeContextCurrent(guiWindow);
 
   // we create the application's window
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Anisotropic with tangent space calculations", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Anisotropic with Tangent Mapping given by Normal Mapping Perturbation", nullptr, nullptr);
     if (!window)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -292,7 +303,7 @@ int main()
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
     // we create the Shader Program used for objects (which presents different subroutines we can switch)
-    Shader illumination_shader = Shader("aniso_tangspace_2.vert", "aniso_tangspace_2.frag");
+    Shader illumination_shader = Shader("aniso_tangmap.vert", "aniso_tangmap.frag");
     // we parse the Shader Program to search for the number and names of the subroutines. 
     // the names are placed in the shaders vector
     SetupShader(illumination_shader.Program);
@@ -306,6 +317,8 @@ int main()
     // we load the images and store them in a vector
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/SoilCracked.png"));
+    textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_normal.jpg"));
+    textureID.push_back(LoadTexture("../../textures/quaternionRotation.png"));
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
     glm::mat4 projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
@@ -365,12 +378,19 @@ int main()
         // we search inside the Shader Program the name of the subroutine, and we get the numerical index
         GLuint index_diffuse = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Lambert");
         GLuint index_specular = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "BlinnPhong");
-        GLuint plane_indices[2] =  {index_diffuse, index_specular};
+        GLuint index_n_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_N");
+        GLuint index_t_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_T");
+        GLuint index_b_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_B");
+        GLuint plane_indices[5] =  {index_diffuse, index_specular, index_n_map, index_t_map, index_b_map};
         // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, 2, &plane_indices[0]);
+
+        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, 3, &plane_indices[0]);
 
         // we determine the position in the Shader Program of the uniform variables
         GLint textureLocation = glGetUniformLocation(illumination_shader.Program, "tex");
+        GLint normalLocation = glGetUniformLocation(illumination_shader.Program, "normMap");
+        GLint quaternionLocation = glGetUniformLocation(illumination_shader.Program, "quaternionMap");
+        GLint hasNormalLocation = glGetUniformLocation(illumination_shader.Program, "hasNormalMap");
         GLint repeatLocation = glGetUniformLocation(illumination_shader.Program, "repeat");
         GLint matAmbientLocation = glGetUniformLocation(illumination_shader.Program, "ambientColor");
         GLint matSpecularLocation = glGetUniformLocation(illumination_shader.Program, "specularColor");
@@ -382,6 +402,8 @@ int main()
         GLint f0Location = glGetUniformLocation(illumination_shader.Program, "F0");
         GLint alphaXLocation = glGetUniformLocation(illumination_shader.Program, "alphaX");
         GLint alphaYLocation = glGetUniformLocation(illumination_shader.Program, "alphaY");
+        GLint nXLocation = glGetUniformLocation(illumination_shader.Program, "nX");
+        GLint nYLocation = glGetUniformLocation(illumination_shader.Program, "nY");
             
         // we assign the value to the uniform variables
         glUniform3fv(matAmbientLocation, 1, ambientColor);
@@ -391,6 +413,8 @@ int main()
         glUniform1f(f0Location, F0);
         glUniform1f(alphaXLocation, alphaX);
         glUniform1f(alphaYLocation, alphaY);
+        glUniform1f(nXLocation, nX);
+        glUniform1f(nYLocation, nY);
 
         // for the plane, we make it mainly Lambertian, by setting at 0 the specular component
         glUniform1f(kaLocation, 0.0f);
@@ -414,6 +438,7 @@ int main()
         // we use a different texture used and the number of repetitions for the plane
         glUniform1i(textureLocation, 1);
         glUniform1f(repeatLocation, 80.0f);
+        glUniform1i(hasNormalLocation, GL_FALSE);
 
         // we create the transformation matrix
         // we reset to identity at each frame
@@ -431,23 +456,38 @@ int main()
 
         /////////////////// OBJECTS ////////////////////////////////////////////////
         // we search inside the Shader Program the name of the subroutine currently selected, and we get the numerical index
+        
         GLuint indices[MY_MAX_SUB_UNIF];
         for (int i = 0; i < countActiveSU; i++) {
             indices[i] = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, subroutines_names[current_subroutines[i]].c_str());
         }
+
         // we activate the desired subroutines using the indices (this is where shaders swapping happens)
         glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, countActiveSU, &indices[0]);
 
+        // Textures and Normal Maps
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID[0]);
+
+        // we change texture for the objects 
+        glUniform1i(textureLocation, 0);
+        glUniform1f(repeatLocation, repeat);
+
+        // normal map
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, textureID[2]);
+        glUniform1i(normalLocation, 2);
+        glUniform1i(hasNormalLocation, GL_TRUE);
+
+        // rotation map
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, textureID[3]);
+        glUniform1i(quaternionLocation, 3);
 
         // we set other parameters for the objects
         glUniform1f(kaLocation, Ka);
         glUniform1f(kdLocation, Kd);
         glUniform1f(ksLocation, Ks);
-        // we change texture and repetitions for the objects 
-        glUniform1i(textureLocation, 0);
-        glUniform1f(repeatLocation, repeat);
 
         // SPHERE
         /*
@@ -556,9 +596,30 @@ int main()
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Shirley"))
+                {
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("GGX"))
                 {
                     ImGui::SliderFloat("alpha", &alpha, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Ashikhmin-Shirley"))
+                {
+                    ImGui::SliderFloat("Normal incidence Fresnel reflectance", &F0, 0.0001f, 1.0f, "F0 = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SliderFloat("X-shininess", &nX, 1.0, 1000.0, "nX = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp); 
+                    ImGui::SliderFloat("Y-shininess", &nY, 1.0, 1000.0, "nY = %.4f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp); 
+                    if (ImGui::Button("Swap X and Y shininess"))    // Buttons return true when clicked (most widgets return true when edited/activated)
+                    {
+                        float temp = nX;
+                        nX = nY;
+                        nY = temp;
+                    }
                     ImGui::TreePop();
                 }
                 
@@ -631,48 +692,63 @@ int main()
 // the subroutines to the shaders vector, which is used for the shaders swapping
 void SetupShader(int program)
 {
-    int maxSub,maxSubU;
+    int maxSub,maxSubU,activeSub;
     GLchar name[256]; 
     int len, numCompS;
     
     // global parameters about the Subroutines parameters of the system
     glGetIntegerv(GL_MAX_SUBROUTINES, &maxSub);
     glGetIntegerv(GL_MAX_SUBROUTINE_UNIFORM_LOCATIONS, &maxSubU);
-    std::cout << "Max Subroutines:" << maxSub << " - Max Subroutine Uniforms:" << maxSubU << std::endl;
+    glGetProgramStageiv(program, GL_FRAGMENT_SHADER, GL_ACTIVE_SUBROUTINES, &activeSub);
+
+    std::cout << "Max Subroutines:" << maxSub << " - Max Subroutine Uniforms:" << maxSubU << " - Active Subroutines:" << activeSub << std::endl;
 
     // get the number of Subroutine uniforms (only for the Fragment shader, due to the nature of the exercise)
     // it is possible to add similar calls also for the Vertex shader
     glGetProgramStageiv(program, GL_FRAGMENT_SHADER, GL_ACTIVE_SUBROUTINE_UNIFORMS, &countActiveSU);
-    
+
+    // initialize vectors to have the right size
+    sub_uniforms_names = vector<std::string>(countActiveSU);
+    num_compatible_subroutines = vector<int>(countActiveSU);
+    compatible_subroutines = vector<int*>(countActiveSU);
+    current_subroutines = vector<GLuint>(countActiveSU);
+
+    /*
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    TODO: SUBSTITUTE ACCESS [loc] WITH at(loc)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    */
+
     // print info for every Subroutine uniform
     for (int i = 0; i < countActiveSU; i++) {
         
         // get the name of the Subroutine uniform (in this example, we have only one)
         glGetActiveSubroutineUniformName(program, GL_FRAGMENT_SHADER, i, 256, &len, name);
+        int loc = glGetSubroutineUniformLocation(program, GL_FRAGMENT_SHADER, name);
         // append it to the list of names of subroutine uniforms
-        sub_uniforms_names.push_back(name);
+        sub_uniforms_names[loc] = name;
         // print index and name of the Subroutine uniform
-        std::cout << "Subroutine Uniform: " << i << " - name: " << name << std::endl;
+        std::cout << "Subroutine Uniform, index: " << i << " - location: " << loc << " - name: " << name << std::endl;
 
         // get the number of subroutines
         glGetActiveSubroutineUniformiv(program, GL_FRAGMENT_SHADER, i, GL_NUM_COMPATIBLE_SUBROUTINES, &numCompS);
         // save it outside of SetupShader;
-        num_compatible_subroutines.push_back(numCompS);
+        num_compatible_subroutines[loc] = numCompS;
         
         // get the indices of the active subroutines info and write into the array s
         int *s =  new int[numCompS];
         glGetActiveSubroutineUniformiv(program, GL_FRAGMENT_SHADER, i, GL_COMPATIBLE_SUBROUTINES, s);
-        compatible_subroutines.push_back(s);
+        compatible_subroutines[loc] = s;
         std::cout << "Compatible Subroutines:" << std::endl;
 
         // activate the first subroutine for each uniform
-        current_subroutines.push_back(compatible_subroutines[i][0]);
+        current_subroutines[loc] = compatible_subroutines[loc][0];
         
         // for each index, get the name of the subroutines, print info, and save the name in the shaders vector
         for (int j=0; j < numCompS; ++j) {
             glGetActiveSubroutineName(program, GL_FRAGMENT_SHADER, s[j], 256, &len, name);
             std::cout << "\t" << s[j] << " - " << name << "\n";
-            subroutines_names.push_back(name);
+            subroutines_names.emplace(s[j], name);
         }
         std::cout << std::endl;
         
@@ -707,7 +783,7 @@ GLint LoadTexture(const char* path)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     // we set the filtering for minification and magnification
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // we free the memory once we have created an OpenGL texture
     stbi_image_free(image);
@@ -847,4 +923,17 @@ bool ImGui::RadioButton(const char* label, GLuint* v, GLuint v_button)
     if (pressed)
         *v = v_button;
     return pressed;
+}
+
+// this function takes the value "perturbedNormal" of the normal map in a texel and returns the quaternion that rotates N = (0.0, 0.0, 1.0) to perturbedNormal (in tangent space coordinates)
+// it returns a vec3 because the quaternion q = a + bi + cj + dk we calculate always has d == 0
+// to speed up calculations, I omit the last coordinate
+// IMPORTANT: the argument is supposed normalized
+glm::vec3 RotationQuaternion(glm::vec3 perturbedNormal)
+{
+    float a = sqrt((perturbedNormal.z + 1.0)/2.0);
+    float b = perturbedNormal.y / (2*a);
+    float c = -perturbedNormal.x / (2*a);
+    // float d = 0;
+    return glm::vec3(a, b, c);
 }

@@ -49,6 +49,9 @@ uniform sampler2D tex;
 uniform sampler2D normMap;
 uniform bool hasNormalMap;
 
+// quaternion map sampler
+uniform sampler2D quaternionMap;
+
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
 uniform vec3 specularColor;
@@ -74,6 +77,7 @@ uniform float alphaY; // rugosity along the bitangent vector
 uniform float nX;
 uniform float nY;
 
+
 ////////////////////////////////////////////////////////////////////
 
 // the "type" of the Subroutine
@@ -84,10 +88,35 @@ subroutine uniform diffuse_model Diffuse;
 
 ////////////////////////////////////////////////////////////////////
 
+// the "type" of the Subroutine
 subroutine vec4 specular_model();
 
 // Subroutine Uniform (it is conceptually similar to a C pointer function)
 subroutine uniform specular_model Specular;
+
+////////////////////////////////////////////////////////////////////
+
+// the "type" of the Subroutine
+subroutine vec3 normal_map(vec2 repeated_Uv);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform normal_map Normal_Map;
+
+////////////////////////////////////////////////////////////////////
+
+// the "type" of the Subroutine
+subroutine vec3 tangent_map(vec2 repeated_Uv);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform tangent_map Tangent_Map;
+
+////////////////////////////////////////////////////////////////////
+
+// the "type" of the Subroutine
+subroutine vec3 bitangent_map(vec2 repeated_Uv);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform bitangent_map Bitangent_Map;
 
 ////////////////////////////////////////////////////////////////////
 // a subroutine for the diffuse model used by GGX and Ward
@@ -100,7 +129,7 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
 
     vec4 color = vec4(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -128,7 +157,7 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -164,7 +193,7 @@ vec4 Shirley() // this name is the one which is detected by the SetupShaders() f
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
     vec3 V = normalize(tViewDirection);
 
     float NdotV = dot(N,V);
@@ -199,7 +228,7 @@ vec4 BlinnPhong() // this name is the one which is detected by the SetupShaders(
     // the specular component
     vec4 specular = vec4(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -258,7 +287,7 @@ vec4 GGX() // this name is the one which is detected by the SetupShaders() funct
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -328,7 +357,9 @@ vec4 AshikhminShirley()
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
+    vec3 T = Tangent_Map(repeated_Uv);
+    vec3 B = Bitangent_Map(repeated_Uv);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -354,8 +385,8 @@ vec4 AshikhminShirley()
             // we calculate the cosines and parameters to be used in the different parts of the BRDF
             // all calculations are in tangent space
             float NdotH = dot(N,H);
-            float TdotH = H.x;
-            float BdotH = H.y;
+            float TdotH = dot(T,H);
+            float BdotH = dot(B,H);
             float NdotV = max(dot(N,V), 0.0);
             float HdotV = dot(H,V); // == dot(H,L) and it is always positive (when H is defined)
 
@@ -401,11 +432,12 @@ vec4 HeidrichSeidel() // this name is the one which is detected by the SetupShad
     // ambient component can be calculated at the beginning
     vec4 color = vec4(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
+    vec3 T = Tangent_Map(repeated_Uv);
 
     // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
     vec3 V = normalize(tViewDirection);
-    float TdotV = V.x; // in tangent space, T is (1, 0, 0)
+    float TdotV = dot(T,V);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -449,7 +481,9 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = hasNormalMap ? 2.0 * texture(normMap, repeated_Uv).xyz - 1.0 : vec3(0.0, 0.0, 1.0);
+    vec3 N = Normal_Map(repeated_Uv);
+    vec3 T = Tangent_Map(repeated_Uv);
+    vec3 B = Bitangent_Map(repeated_Uv);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -475,8 +509,8 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
             // we calculate the cosines and parameters to be used in the different parts of the BRDF
             // all calculations are in tangent space
             float NdotH = dot(N,H);
-            float TdotH = H.x;
-            float BdotH = H.y;
+            float TdotH = dot(T,H);
+            float BdotH = dot(B,H);
             float NdotV = max(dot(N,V), 0.0);
 
             // TdotH squared, weighted by alpha X
@@ -508,6 +542,62 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
     }
     return vec4(color,1.0);
 
+}
+
+////////////////////////////////////////////////////////////////////
+// subroutines for assigning N vector, in the abscence or presence of a normal map
+subroutine(normal_map)
+vec3 Off_N(vec2 repeated_Uv)
+{
+    return vec3(0.0, 0.0, 1.0);
+}
+
+subroutine(normal_map)
+vec3 NormalMapping(vec2 repeated_Uv)
+{
+    return 2.0 * texture(normMap, repeated_Uv).xyz - 1.0;
+}
+
+subroutine(normal_map)
+vec3 RotationMap_N(vec2 repeated_Uv)
+{
+    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
+    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
+    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    // float d = 0.0;
+    return vec3(-2.0*a*c, 2.0*a*b, a*a - b*b - c*c);
+}
+
+subroutine(tangent_map)
+vec3 Off_T(vec2 repeated_Uv)
+{
+    return vec3(1.0, 0.0, 0.0);
+}
+
+subroutine(tangent_map)
+vec3 RotationMap_T(vec2 repeated_Uv)
+{
+    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
+    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
+    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    // float d = 0.0;
+    return vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c);
+}
+
+subroutine(bitangent_map)
+vec3 Off_B(vec2 repeated_Uv)
+{
+    return vec3(0.0, 1.0, 0.0);
+}
+
+subroutine(bitangent_map)
+vec3 RotationMap_B(vec2 repeated_Uv)
+{
+    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
+    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
+    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    // float d = 0.0;
+    return vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
 }
 
 //////////////////////////////////////////

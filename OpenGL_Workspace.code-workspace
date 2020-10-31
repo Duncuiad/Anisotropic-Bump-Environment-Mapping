@@ -5,20 +5,32 @@
 			"path": "include"
 		},
 		{
-			"name": "Ex1",
+			"name": "Textures",
+			"path": "textures"
+		},
+		{
+			"name": "Setup Rotation Mapping",
+			"path": "src/SetupRotation"
+		},
+		{
+			"name": "Basic Anisotropy",
 			"path": "src/Ex 1"
 		},
 		{
-			"name": "Ex2",
+			"name": "Improved GUI",
 			"path": "src/Ex 2"
 		},
 		{
-			"name": "Ex3",
+			"name": "Tangent Space Calculations",
 			"path": "src/Ex 3"
-		}
+		},
 		{
-			"name": "Ex4",
+			"name": "Normal Mapping Only",
 			"path": "src/Ex 4"
+		},
+		{
+			"name": "Tangent Mapping with Normal Mapping Perturbation",
+			"path": "src/Ex 5"
 		}
 	],
 	"settings": {

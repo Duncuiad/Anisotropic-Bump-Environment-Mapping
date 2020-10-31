@@ -148,7 +148,6 @@ namespace ImGui {
     bool RadioButton(const char* label, GLuint* v, GLuint v_button);
 }
 
-
 // we initialize an array of booleans for each keybord key
 bool keys[1024];
 
@@ -181,8 +180,8 @@ Camera camera(glm::vec3(0.0f, 0.0f, 7.0f), GL_TRUE);
 // pointlights positions
 glm::vec3 lightPositions[] = {
     glm::vec3(5.0f, 10.0f, 10.0f),
-//    glm::vec3(-5.0f, 10.0f, 10.0f),
-//    glm::vec3(5.0f, 10.0f, -10.0f),
+    glm::vec3(-5.0f, 10.0f, 10.0f),
+    glm::vec3(5.0f, 10.0f, -10.0f),
 };
 
 // specular and ambient components
