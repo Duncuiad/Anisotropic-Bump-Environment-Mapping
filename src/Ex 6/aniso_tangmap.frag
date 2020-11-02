@@ -53,6 +53,7 @@ uniform sampler2D quaternionMap;
 
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
+uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 // weight of the components
 // in this case, we can pass separate values from the main application even if Ka+Kd+Ks>1. In more "realistic" situations, I have to set this sum = 1, or at least Kd+Ks = 1, by passing Kd as uniform, and then setting Ks = 1.0-Kd
@@ -76,6 +77,13 @@ uniform float alphaY; // rugosity along the bitangent vector
 uniform float nX;
 uniform float nY;
 
+////////////////////////////////////////////////////////////////////
+
+// the "type" of the Subroutine
+subroutine vec4 surface_c(vec2 coord);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform surface_c Surface_Color;
 
 ////////////////////////////////////////////////////////////////////
 
@@ -118,6 +126,21 @@ subroutine vec3 bitangent_map(vec2 repeated_Uv);
 subroutine uniform bitangent_map Bitangent_Map;
 
 ////////////////////////////////////////////////////////////////////
+// a subroutine for the surface color of the objects
+subroutine(surface_c)
+vec4 Flat(vec2 coord)
+{
+    return vec4(diffuseColor, 1.0);
+}
+
+// a subroutine for the surface color of the objects, which returns the texel at coordinates UV
+subroutine(surface_c)
+vec4 Texture(vec2 coord)
+{
+    return texture(tex, coord);
+}
+
+////////////////////////////////////////////////////////////////////
 // a subroutine for the diffuse model used by GGX and Ward
 subroutine(diffuse_model)
 vec4 PBR() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
@@ -125,6 +148,7 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    // vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(0.0);
 
@@ -153,6 +177,7 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    // vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
@@ -189,6 +214,7 @@ vec4 Shirley() // this name is the one which is detected by the SetupShaders() f
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    // vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 

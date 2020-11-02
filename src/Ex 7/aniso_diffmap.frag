@@ -51,8 +51,12 @@ uniform sampler2D normMap;
 // quaternion map sampler
 uniform sampler2D quaternionMap;
 
+// differential map sampler
+uniform sampler2D diffMap;
+
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
+uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 // weight of the components
 // in this case, we can pass separate values from the main application even if Ka+Kd+Ks>1. In more "realistic" situations, I have to set this sum = 1, or at least Kd+Ks = 1, by passing Kd as uniform, and then setting Ks = 1.0-Kd
@@ -76,6 +80,13 @@ uniform float alphaY; // rugosity along the bitangent vector
 uniform float nX;
 uniform float nY;
 
+////////////////////////////////////////////////////////////////////
+
+// the "type" of the Subroutine
+subroutine vec4 surface_c(vec2 coord);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform surface_c Surface_Color;
 
 ////////////////////////////////////////////////////////////////////
 
@@ -118,6 +129,21 @@ subroutine vec3 bitangent_map(vec2 repeated_Uv);
 subroutine uniform bitangent_map Bitangent_Map;
 
 ////////////////////////////////////////////////////////////////////
+// a subroutine for the surface color of the objects
+subroutine(surface_c)
+vec4 Flat(vec2 coord)
+{
+    return vec4(diffuseColor, 1.0);
+}
+
+// a subroutine for the surface color of the objects, which returns the texel at coordinates UV
+subroutine(surface_c)
+vec4 Texture(vec2 coord)
+{
+    return texture(tex, coord);
+}
+
+////////////////////////////////////////////////////////////////////
 // a subroutine for the diffuse model used by GGX and Ward
 subroutine(diffuse_model)
 vec4 PBR() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
@@ -125,6 +151,7 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    //vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(0.0);
 
@@ -153,6 +180,7 @@ vec4 Lambert() // this name is the one which is detected by the SetupShaders() f
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    //vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
@@ -189,6 +217,7 @@ vec4 Shirley() // this name is the one which is detected by the SetupShaders() f
     // we repeat the UVs and we sample the texture
     vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
     vec4 surfaceColor = texture(tex, repeated_Uv);
+    //vec4 surfaceColor = Surface_Color(repeated_Uv);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
@@ -215,6 +244,22 @@ vec4 Shirley() // this name is the one which is detected by the SetupShaders() f
     return color;
 }
 
+/*
+
+////////////////////////////////////////////////////////////////////
+// a subroutine for the Shirley model for diffuse component
+subroutine(diffuse_model)
+vec4 Temporary() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
+{
+        // we repeat the UVs and we sample the texture
+    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    //vec4 surfaceColor = texture(tex, repeated_Uv);
+    vec4 surfaceColor = Surface_Color(repeated_Uv);
+
+    return surfaceColor;
+}
+
+*/
 
 //////////////////////////////////////////
 // a subroutine for the Blinn-Phong model for multiple lights and texturing
@@ -560,9 +605,10 @@ vec3 NormalMapping(vec2 repeated_Uv)
 subroutine(normal_map)
 vec3 RotationMap_N(vec2 repeated_Uv)
 {
-    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
-    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
-    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
     // float d = 0.0;
     return vec3(-2.0*a*c, 2.0*a*b, a*a - b*b - c*c);
 }
@@ -574,11 +620,19 @@ vec3 Off_T(vec2 repeated_Uv)
 }
 
 subroutine(tangent_map)
+vec3 Diff_T(vec2 repeated_Uv)
+{
+    vec2 V = 2.0 * texture(diffMap, repeated_Uv).xy - 1.0;
+    return vec3(V.x, V.y, 0.0);
+}
+
+subroutine(tangent_map)
 vec3 RotationMap_T(vec2 repeated_Uv)
 {
-    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
-    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
-    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
     // float d = 0.0;
     return vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c);
 }
@@ -590,11 +644,19 @@ vec3 Off_B(vec2 repeated_Uv)
 }
 
 subroutine(bitangent_map)
+vec3 Diff_B(vec2 repeated_Uv)
+{
+    vec2 V = 2.0 * texture(diffMap, repeated_Uv).xy - 1.0;
+    return vec3(-V.y, V.x, 0.0);
+}
+
+subroutine(bitangent_map)
 vec3 RotationMap_B(vec2 repeated_Uv)
 {
-    float a = 2.0 * texture(quaternionMap, repeated_Uv).x - 1.0;
-    float b = 2.0 * texture(quaternionMap, repeated_Uv).y - 1.0;
-    float c = 2.0 * texture(quaternionMap, repeated_Uv).z - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
     // float d = 0.0;
     return vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
 }

@@ -1,55 +1,3 @@
-/*
-Es04: as Es03d, but textures are used for the diffusive component of materials
-- Moreover, it is possible to move inside the scene using WASD keys and mouse.
-
-N.B. 1) 
-In this example we use Shaders Subroutines to do shader swapping:
-http://www.geeks3d.com/20140701/opengl-4-shader-subroutines-introduction-3d-programming-tutorial/
-https://www.lighthouse3d.com/tutorials/glsl-tutorial/subroutines/
-https://www.khronos.org/opengl/wiki/Shader_Subroutine
-
-In other cases, an alternative could be to consider Separate Shader Objects:
-https://www.informit.com/articles/article.aspx?p=2731929&seqNum=7
-https://www.khronos.org/opengl/wiki/Shader_Compilation#Separate_programs
-https://riptutorial.com/opengl/example/26979/load-separable-shader-in-cplusplus
-
-N.B. 2) 
-There are other methods (more efficient) to pass multiple data to the shaders, using for example Uniform Buffer Objects.
-With last versions of OpenGL, using structures like the one cited above, it is possible to pass a "dynamic" number of lights
-https://www.geeks3d.com/20140704/gpu-buffers-introduction-to-opengl-3-1-uniform-buffers-objects/
-https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL (scroll down a bit)
-https://hub.packtpub.com/opengl-40-using-uniform-blocks-and-uniform-buffer-objects/
-
-N.B. 3) we have considered point lights only, the code must be modified for different light sources
-
-N.B. 4) to test different parameters of the shaders, it is convenient to use some GUI library, like e.g. Dear ImGui (https://github.com/ocornut/imgui)
-
-N.B. 5) The Camera class has been added in include/utils
-
-author: Davide Gadia
-
-Real-Time Graphics Programming - a.a. 2019/2020
-Master degree in Computer Science
-Universita' degli Studi di Milano
-*/
-
-/*
-OpenGL coordinate system (right-handed)
-positive X axis points right
-positive Y axis points up
-positive Z axis points "outside" the screen
-
-
-                              Y
-                              |
-                              |
-                              |________X
-                             /
-                            /
-                           /
-                          Z
-*/
-
 #ifdef _WIN32
     #define __USE_MINGW_ANSI_STDIO 0
 #endif
@@ -128,7 +76,7 @@ vector<int*> compatible_subroutines;
 // a vector for all the shader subroutine uniforms names
 vector<std::string> sub_uniforms_names;
 // a vector for all the shader subroutines names used and swapped in the application
-map<int, std::string> subroutines_names;
+vector<std::string> subroutines_names;
 
 // the name of the subroutines are searched in the shaders, and placed in the shaders vector (to allow shaders swapping)
 void SetupShader(int shader_program);
@@ -148,9 +96,6 @@ namespace ImGui {
     bool RadioButton(const char* label, GLuint* v, GLuint v_button);
 }
 
-// calculate tangent space rotation mapping via normal mapping
-glm::vec3 RotationQuaternion(glm::vec3 perturbedNormal);
-
 // we initialize an array of booleans for each keybord key
 bool keys[1024];
 
@@ -159,10 +104,11 @@ GLfloat lastX, lastY;
 
 // when rendering the first frame, we do not have a "previous state" for the mouse, so we need to manage this situation
 bool firstMouse = true;
-// boolean to activate/deactivate mouse cursor
-GLboolean cursorActive = GL_FALSE;
+// control the state of the application
+GLboolean optionsOverlayActive = GL_FALSE;
 
-// parameters for time calculation (for animations)
+// parameters for time calculation (for metrics and animations)
+GLfloat setupTime = 0.0f;
 GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
 
@@ -189,6 +135,7 @@ glm::vec3 lightPositions[] = {
 
 // specular and ambient components
 GLfloat specularColor[] = {1.0,1.0,1.0};
+GLfloat diffuseColor[] = {1.0,0.0,0.0};
 GLfloat ambientColor[] = {0.1,0.1,0.1};
 // weights for the diffusive, specular and ambient components
 GLfloat Ka = 0.2f, Kd = 0.8f, Ks = 0.5f;
@@ -205,7 +152,7 @@ GLfloat F0 = 0.9f;
 GLfloat alphaX = 0.1f, alphaY = 1.0f;
 
 // directional shininess(es) for Ashikhmin-Shirley model
-GLfloat nX = 1.0f, nY = 10.0f;
+GLfloat nX = 30.0f, nY = 300.0f;
 
 // vector for the textures IDs
 vector<GLint> textureID;
@@ -221,22 +168,19 @@ TODO:
 /////////////////// MAIN function ///////////////////////
 int main()
 {
-  // Initialization of OpenGL context using GLFW
-  glfwInit();
-  // We set OpenGL specifications required for this application
-  // In this case: 4.1 Core
-  // If not supported by your graphics HW, the context will not be created and the application will close
-  // N.B.) creating GLAD code to load extensions, try to take into account the specifications and any extensions you want to use,
-  // in relation also to the values indicated in these GLFW commands
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-  const char* glsl_version = "#version 410";
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  // we set if the window is resizable
-  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    // Initialization of OpenGL context using GLFW
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    const char* glsl_version = "#version 410";
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    // we set if the window is resizable
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-  // we create the ImGui window
+    /*
+    // we create the ImGui window
+
     GLFWwindow* guiWindow = glfwCreateWindow(guiWidth, guiHeight, "Dear ImGui", nullptr, nullptr);
     if (!guiWindow)
     {
@@ -247,8 +191,18 @@ int main()
     glfwSetWindowPos(guiWindow, screenWidth, 30);
     glfwMakeContextCurrent(guiWindow);
 
-  // we create the application's window
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Anisotropic with Tangent Mapping given by Normal Mapping Perturbation", nullptr, nullptr);
+    */
+
+    // Get monitor information
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    
+    glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+    
+    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Anisotropic with Tangent Mapping given by Normal Mapping Perturbation", NULL, NULL);
+
     if (!window)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -283,7 +237,7 @@ int main()
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(guiWindow, true);
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
 
@@ -298,29 +252,30 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
     //the "clear" color for the frame buffer
-    ImVec4 clear_color = ImVec4(0.26f, 0.46f, 0.98f, 1.0f);
+    glm::vec4 clear_color = glm::vec4(0.26f, 0.46f, 0.98f, 1.0f);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
     // we create the Shader Program used for objects (which presents different subroutines we can switch)
-    Shader illumination_shader = Shader("aniso_tangmap.vert", "aniso_tangmap.frag");
+    Shader illumination_shader = Shader("aniso_diffmap.vert", "aniso_diffmap.frag");
     // we parse the Shader Program to search for the number and names of the subroutines. 
     // the names are placed in the shaders vector
     SetupShader(illumination_shader.Program);
     // we print on console the name of the first subroutine used
     // we load the model(s) (code of Model class is in include/utils/model_v2.h)
     Model cubeModel("../../models/cube.obj");
-    Model sphereModel("../../models/sphere1.obj");
+    Model sphereModel("../../models/sphere.obj");
     Model bunnyModel("../../models/bunny_lp.obj");
     Model planeModel("../../models/plane.obj");
 
     // we load the images and store them in a vector
-    textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/SoilCracked.png"));
+    textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_normal.jpg"));
     textureID.push_back(LoadTexture("../../textures/quaternionRotation.png"));
+    textureID.push_back(LoadTexture("../../textures/tangentPlaneMapping.png"));
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
-    glm::mat4 projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
+    glm::mat4 projection = glm::perspective(45.0f, (float)width/(float)height, 0.1f, 10000.0f);
 
     // View matrix: the camera moves, so we just set to indentity now
     glm::mat4 view = glm::mat4(1.0f);
@@ -334,6 +289,8 @@ int main()
     glm::mat3 bunnyNormalMatrix = glm::mat3(1.0f);
     glm::mat4 planeModelMatrix = glm::mat4(1.0f);
     glm::mat3 planeNormalMatrix = glm::mat3(1.0f);
+
+    setupTime = glfwGetTime();
 
     // Rendering loop: this code is executed at each frame
     while(!glfwWindowShouldClose(window))
@@ -352,7 +309,7 @@ int main()
         // Check fs an I/O event is happening
         glfwPollEvents();
         // we apply FPS camera movements if mouse cursor is disabled
-        if (!cursorActive)
+        if (!optionsOverlayActive)
             apply_camera_movements();
         // View matrix (=camera): position, view direction, camera "up" vector
         view = camera.GetViewMatrix();
@@ -375,22 +332,25 @@ int main()
          // We render a plane under the objects. We apply the Blinn-Phong model only, and we do not apply the rotation applied to the other objects.
         illumination_shader.Use();
         // we search inside the Shader Program the name of the subroutine, and we get the numerical index
+        GLuint index_color = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Texture");
         GLuint index_diffuse = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Lambert");
         GLuint index_specular = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "BlinnPhong");
         GLuint index_n_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_N");
         GLuint index_t_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_T");
         GLuint index_b_map = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, "Off_B");
-        GLuint plane_indices[5] =  {index_diffuse, index_specular, index_n_map, index_t_map, index_b_map};
+        GLuint plane_indices[MY_MAX_SUB_UNIF] =  {index_color, index_diffuse, index_specular, index_n_map, index_t_map, index_b_map};
         // we activate the subroutine using the index (this is where shaders swapping happens)
 
-        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, 3, &plane_indices[0]);
+        glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, countActiveSU, &plane_indices[0]);
 
         // we determine the position in the Shader Program of the uniform variables
         GLint textureLocation = glGetUniformLocation(illumination_shader.Program, "tex");
         GLint normalLocation = glGetUniformLocation(illumination_shader.Program, "normMap");
         GLint quaternionLocation = glGetUniformLocation(illumination_shader.Program, "quaternionMap");
+        GLint diffLocation = glGetUniformLocation(illumination_shader.Program, "diffMap");
         GLint repeatLocation = glGetUniformLocation(illumination_shader.Program, "repeat");
         GLint matAmbientLocation = glGetUniformLocation(illumination_shader.Program, "ambientColor");
+        GLint matDiffuseLocation = glGetUniformLocation(illumination_shader.Program, "diffuseColor");
         GLint matSpecularLocation = glGetUniformLocation(illumination_shader.Program, "specularColor");
         GLint kaLocation = glGetUniformLocation(illumination_shader.Program, "Ka");
         GLint kdLocation = glGetUniformLocation(illumination_shader.Program, "Kd");
@@ -405,6 +365,7 @@ int main()
             
         // we assign the value to the uniform variables
         glUniform3fv(matAmbientLocation, 1, ambientColor);
+        glUniform3fv(matDiffuseLocation, 1, diffuseColor);
         glUniform3fv(matSpecularLocation, 1, specularColor);
         glUniform1f(shineLocation, shininess);
         glUniform1f(alphaLocation, alpha);
@@ -430,11 +391,9 @@ int main()
             glUniform3fv(glGetUniformLocation(illumination_shader.Program, ("lights[" + number + "]").c_str()), 1, glm::value_ptr(lightPositions[i]));
         }
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureID[1]);
-
-        // we use a different texture used and the number of repetitions for the plane
-        glUniform1i(textureLocation, 1);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureID[0]);
+        glUniform1i(textureLocation, 0);
         glUniform1f(repeatLocation, 80.0f);
 
         // we create the transformation matrix
@@ -458,27 +417,33 @@ int main()
         for (int i = 0; i < countActiveSU; i++) {
             indices[i] = glGetSubroutineIndex(illumination_shader.Program, GL_FRAGMENT_SHADER, subroutines_names[current_subroutines[i]].c_str());
         }
-
+        
         // we activate the desired subroutines using the indices (this is where shaders swapping happens)
         glUniformSubroutinesuiv( GL_FRAGMENT_SHADER, countActiveSU, &indices[0]);
 
         // Textures and Normal Maps
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureID[0]);
-
-        // we change texture for the objects 
-        glUniform1i(textureLocation, 0);
+        // repeat
         glUniform1f(repeatLocation, repeat);
+
+        // texture
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureID[1]);
+        glUniform1i(textureLocation, 1);
 
         // normal map
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, textureID[2]);
         glUniform1i(normalLocation, 2);
 
-        // rotation map
+        // tangent space rotation map
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, textureID[3]);
         glUniform1i(quaternionLocation, 3);
+
+        // tangent plane rotation map
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, textureID[4]);
+        glUniform1i(diffLocation, 4);
 
         // we set other parameters for the objects
         glUniform1f(kaLocation, Ka);
@@ -540,18 +505,14 @@ int main()
         // we render the bunny
         bunnyModel.Draw();
 
-        glfwSwapBuffers(window);
-
         // GUI RENDERING
-
-        glfwMakeContextCurrent(guiWindow);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+        if (optionsOverlayActive)
         {
             
 
@@ -583,6 +544,12 @@ int main()
                     ImGui::SliderFloat("Ambient", &Ka, 0.0, 1.0, "Ka = %.2f", ImGuiSliderFlags_AlwaysClamp);
                     ImGui::SliderFloat("Diffuse", &Kd, 0.0, 1.0, "Kd = %.2f", ImGuiSliderFlags_AlwaysClamp);
                     ImGui::SliderFloat("Specular", &Ks, 0.0, 1.0, "Ks = %.2f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Flat Color"))
+                {
+                    ImGui::ColorPicker3("Diffuse Color", diffuseColor);
                     ImGui::TreePop();
                 }
 
@@ -645,17 +612,26 @@ int main()
 
             ImGui::End();
         }
+        else // optionsOverlayActive == false
+        {
+            ImGui::Begin("Tips");
+
+            ImGui::Text("Controls:");
+            ImGui::Text("W, A, S, D to move");
+            ImGui::Text("LShift to descend, Space to ascend");
+            ImGui::Text("P to toggle animations");
+            ImGui::Text("L to toggle wireframe rendering");
+            ImGui::Text("E for options");
+            ImGui::Text("Esc to close appliation");
+
+            ImGui::End();
+        }
 
         ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(guiWindow, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Swapping back and front buffers
-        glfwSwapBuffers(guiWindow);
+        glfwSwapBuffers(window);
     }
 
    // when I exit from the graphics loop, it is because the application is closing
@@ -674,7 +650,6 @@ int main()
     }
 
     glfwDestroyWindow(window);
-    glfwDestroyWindow(guiWindow);
 
     // we close and delete the created context
     glfwTerminate();
@@ -708,6 +683,7 @@ void SetupShader(int program)
     num_compatible_subroutines = vector<int>(countActiveSU);
     compatible_subroutines = vector<int*>(countActiveSU);
     current_subroutines = vector<GLuint>(countActiveSU);
+    subroutines_names = vector<std::string>(activeSub);
 
     /*
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -722,29 +698,29 @@ void SetupShader(int program)
         glGetActiveSubroutineUniformName(program, GL_FRAGMENT_SHADER, i, 256, &len, name);
         int loc = glGetSubroutineUniformLocation(program, GL_FRAGMENT_SHADER, name);
         // append it to the list of names of subroutine uniforms
-        sub_uniforms_names[loc] = name;
+        sub_uniforms_names.at(loc) = name;
         // print index and name of the Subroutine uniform
         std::cout << "Subroutine Uniform, index: " << i << " - location: " << loc << " - name: " << name << std::endl;
 
         // get the number of subroutines
         glGetActiveSubroutineUniformiv(program, GL_FRAGMENT_SHADER, i, GL_NUM_COMPATIBLE_SUBROUTINES, &numCompS);
         // save it outside of SetupShader;
-        num_compatible_subroutines[loc] = numCompS;
+        num_compatible_subroutines.at(loc) = numCompS;
         
         // get the indices of the active subroutines info and write into the array s
         int *s =  new int[numCompS];
         glGetActiveSubroutineUniformiv(program, GL_FRAGMENT_SHADER, i, GL_COMPATIBLE_SUBROUTINES, s);
-        compatible_subroutines[loc] = s;
+        compatible_subroutines.at(loc) = s;
         std::cout << "Compatible Subroutines:" << std::endl;
 
         // activate the first subroutine for each uniform
-        current_subroutines[loc] = compatible_subroutines[loc][0];
+        current_subroutines.at(loc) = compatible_subroutines.at(loc)[0];
         
         // for each index, get the name of the subroutines, print info, and save the name in the shaders vector
         for (int j=0; j < numCompS; ++j) {
             glGetActiveSubroutineName(program, GL_FRAGMENT_SHADER, s[j], 256, &len, name);
             std::cout << "\t" << s[j] << " - " << name << "\n";
-            subroutines_names.emplace(s[j], name);
+            subroutines_names.at(s[j]) = name;
         }
         std::cout << std::endl;
         
@@ -761,7 +737,7 @@ GLint LoadTexture(const char* path)
     GLuint textureImage;
     int w, h, channels;
     unsigned char* image;
-    image = stbi_load(path, &w, &h, &channels, STBI_rgb);
+    image = stbi_load(path, &w, &h, &channels, STBI_default);
 
     if (image == nullptr)
         std::cout << "Failed to load texture!" << std::endl;
@@ -773,6 +749,11 @@ GLint LoadTexture(const char* path)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
     else if (channels==4)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+    else
+    {
+        std::cout << "Error loading the texture: number of channels must be 3 or 4" << std::endl;
+    }
+    
     glGenerateMipmap(GL_TEXTURE_2D);
     // we set how to consider UVs outside [0,1] range
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -820,7 +801,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     // if SPACE is pressed, we activate/deactivate the mouse cursor
     if(key == GLFW_KEY_E && action == GLFW_PRESS)
     {
-        if (cursorActive) { // let the application read the mouse again
+        if (optionsOverlayActive) { // let the application read the mouse again
             glfwSetCursorPosCallback(window, mouse_callback);
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             glfwSetCursorPos(window, lastX, lastY); // forget what the mouse has been doing
@@ -828,7 +809,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             glfwSetCursorPosCallback(window, NULL);
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
-        cursorActive=!cursorActive;
+        optionsOverlayActive=!optionsOverlayActive;
     }
 
 /*

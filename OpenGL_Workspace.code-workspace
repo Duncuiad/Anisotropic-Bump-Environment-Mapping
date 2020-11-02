@@ -5,12 +5,16 @@
 			"path": "include"
 		},
 		{
-			"name": "Textures",
+			"name": "[Assets] Textures",
 			"path": "textures"
 		},
 		{
-			"name": "Setup Rotation Mapping",
+			"name": "[Setup] Rotation Mapping",
 			"path": "src/SetupRotation"
+		},
+		{
+			"name": "[Setup] Differential Mapping",
+			"path": "src/DifferentialMapping"
 		},
 		{
 			"name": "Basic Anisotropy",
@@ -29,14 +33,81 @@
 			"path": "src/Ex 4"
 		},
 		{
-			"name": "Tangent Mapping with Normal Mapping Perturbation",
+			"name": "Tangent Mapping via Normal Mapping Perturbation",
 			"path": "src/Ex 5"
+		},
+		{
+			"name": "Application Overhaul",
+			"path": "src/Ex 6"
+		},
+		{
+			"name": "Differential Mapping",
+			"path": "src/Ex 7"
 		}
 	],
 	"settings": {
 		"files.associations": {
 			"string": "cpp",
-			"vector": "cpp"
+			"vector": "cpp",
+			"algorithm": "cpp",
+			"atomic": "cpp",
+			"cctype": "cpp",
+			"chrono": "cpp",
+			"cmath": "cpp",
+			"compare": "cpp",
+			"concepts": "cpp",
+			"cstdarg": "cpp",
+			"cstddef": "cpp",
+			"cstdint": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"cstring": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"exception": "cpp",
+			"fstream": "cpp",
+			"functional": "cpp",
+			"initializer_list": "cpp",
+			"iomanip": "cpp",
+			"ios": "cpp",
+			"iosfwd": "cpp",
+			"iostream": "cpp",
+			"istream": "cpp",
+			"iterator": "cpp",
+			"limits": "cpp",
+			"list": "cpp",
+			"locale": "cpp",
+			"map": "cpp",
+			"memory": "cpp",
+			"new": "cpp",
+			"ostream": "cpp",
+			"ratio": "cpp",
+			"set": "cpp",
+			"sstream": "cpp",
+			"stdexcept": "cpp",
+			"streambuf": "cpp",
+			"system_error": "cpp",
+			"tuple": "cpp",
+			"type_traits": "cpp",
+			"typeinfo": "cpp",
+			"unordered_map": "cpp",
+			"utility": "cpp",
+			"xfacet": "cpp",
+			"xhash": "cpp",
+			"xiosbase": "cpp",
+			"xlocale": "cpp",
+			"xlocbuf": "cpp",
+			"xlocinfo": "cpp",
+			"xlocmes": "cpp",
+			"xlocmon": "cpp",
+			"xlocnum": "cpp",
+			"xloctime": "cpp",
+			"xmemory": "cpp",
+			"xstddef": "cpp",
+			"xstring": "cpp",
+			"xtr1common": "cpp",
+			"xtree": "cpp",
+			"xutility": "cpp"
 		}
 	}
 }

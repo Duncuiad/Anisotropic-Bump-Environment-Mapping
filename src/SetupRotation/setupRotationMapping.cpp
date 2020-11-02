@@ -46,17 +46,17 @@ int main(int argc, char *argv)
 
 glm::vec3 RGBToVec3(unsigned char R, unsigned char G, unsigned char B)
 {
-    float x = ((float) R) / 128.5 - 1.0;
-    float y = ((float) G) / 128.5 - 1.0;
-    float z = ((float) B) / 128.5 - 1.0;
+    float x = ((float) R) / 127.5 - 1.0;
+    float y = ((float) G) / 127.5 - 1.0;
+    float z = ((float) B) / 127.5 - 1.0;
     return glm::vec3(x, y, z);
 }
 
 void vec3ToRGB(glm::vec3 vector, unsigned char *here)
 {
-    here[0] = (unsigned char) (floorf(vector.x * 128.5 + 128.0));
-    here[1] = (unsigned char) (floorf(vector.y * 128.5 + 128.0));
-    here[2] = (unsigned char) (floorf(vector.z * 128.5 + 128.0));
+    here[0] = (unsigned char) (floorf(vector.x * 127.5 + 127.5));
+    here[1] = (unsigned char) (floorf(vector.y * 127.5 + 127.5));
+    here[2] = (unsigned char) (floorf(vector.z * 127.5 + 127.5));
 }
 
 glm::vec3 RotationQuaternion(glm::vec3 perturbedNormal)
