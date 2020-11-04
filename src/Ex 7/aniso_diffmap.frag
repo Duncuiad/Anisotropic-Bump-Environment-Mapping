@@ -40,7 +40,7 @@ in vec3 tViewDirection;
 in vec2 interp_UV;
 
 // texture repetitions
-uniform float repeat;
+uniform vec2 repeat;
 
 // texture sampler
 uniform sampler2D tex;
@@ -53,6 +53,9 @@ uniform sampler2D quaternionMap;
 
 // differential map sampler
 uniform sampler2D diffMap;
+
+// depth map sampler
+uniform sampler2D depthMap;
 
 // ambient and specular components (passed from the application)
 uniform vec3 ambientColor;
@@ -80,6 +83,9 @@ uniform float alphaY; // rugosity along the bitangent vector
 uniform float nX;
 uniform float nY;
 
+// uniforms for Parallax Mapping
+uniform float heightScale;
+
 ////////////////////////////////////////////////////////////////////
 
 // the "type" of the Subroutine
@@ -87,6 +93,12 @@ subroutine vec4 surface_c(vec2 coord);
 
 // Subroutine Uniform (it is conceptually similar to a C pointer function)
 subroutine uniform surface_c Surface_Color;
+
+// the "type" of the Subroutine
+subroutine vec2 roughness(vec2 coord, bool inverse);
+
+// Subroutine Uniform (it is conceptually similar to a C pointer function)
+subroutine uniform roughness Roughness;
 
 ////////////////////////////////////////////////////////////////////
 
@@ -106,8 +118,14 @@ subroutine uniform specular_model Specular;
 
 ////////////////////////////////////////////////////////////////////
 
+subroutine vec2 displacement(vec2 texCoords, vec3 viewDir);
+
+subroutine uniform displacement Displacement;
+
+////////////////////////////////////////////////////////////////////
+
 // the "type" of the Subroutine
-subroutine vec3 normal_map(vec2 repeated_Uv);
+subroutine vec3 normal_map(vec2 final_UV);
 
 // Subroutine Uniform (it is conceptually similar to a C pointer function)
 subroutine uniform normal_map Normal_Map;
@@ -115,7 +133,7 @@ subroutine uniform normal_map Normal_Map;
 ////////////////////////////////////////////////////////////////////
 
 // the "type" of the Subroutine
-subroutine vec3 tangent_map(vec2 repeated_Uv);
+subroutine vec3 tangent_map(vec2 final_UV);
 
 // Subroutine Uniform (it is conceptually similar to a C pointer function)
 subroutine uniform tangent_map Tangent_Map;
@@ -123,7 +141,7 @@ subroutine uniform tangent_map Tangent_Map;
 ////////////////////////////////////////////////////////////////////
 
 // the "type" of the Subroutine
-subroutine vec3 bitangent_map(vec2 repeated_Uv);
+subroutine vec3 bitangent_map(vec2 final_UV);
 
 // Subroutine Uniform (it is conceptually similar to a C pointer function)
 subroutine uniform bitangent_map Bitangent_Map;
@@ -144,18 +162,42 @@ vec4 Texture(vec2 coord)
 }
 
 ////////////////////////////////////////////////////////////////////
+
+/*
+// a subroutine for the choice of the (directional) roughness of the material, which uses material information
+subroutine(roughness)
+vec2 Material(vec2 coord, bool inverse)
+{
+    float inv = float(inverse);
+    float rX = max(2.0 * texture(diffMap, coord).z - 1.0, 0.0001);
+    float rY = max(2.0 * texture(diffMap, coord).w - 1.0, 0.0001);
+    return vec2(inv/rX + (1.0 - inv) * rX, inv/rY + (1.0 - inv) * rY);
+}
+*/
+
+// a subroutine for the choice of the (directional) roughness of the material, which uses application parameters
+subroutine(roughness)
+vec2 Parameter(vec2 coord, bool inverse)
+{
+    float inv = float(inverse);
+    return vec2(inv*nX + (1.0 - inv) * alphaX, inv*nY + (1.0 - inv) * alphaY);
+}
+
+////////////////////////////////////////////////////////////////////
 // a subroutine for the diffuse model used by GGX and Ward
 subroutine(diffuse_model)
 vec4 PBR() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-    // we repeat the UVs and we sample the texture
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
-    vec4 surfaceColor = texture(tex, repeated_Uv);
-    //vec4 surfaceColor = Surface_Color(repeated_Uv);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
+
+    vec4 surfaceColor = Surface_Color(final_UV);
 
     vec4 color = vec4(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -177,14 +219,16 @@ vec4 PBR() // this name is the one which is detected by the SetupShaders() funct
 subroutine(diffuse_model)
 vec4 Lambert() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-    // we repeat the UVs and we sample the texture
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
-    vec4 surfaceColor = texture(tex, repeated_Uv);
-    //vec4 surfaceColor = Surface_Color(repeated_Uv);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
+
+    vec4 surfaceColor = Surface_Color(final_UV);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -214,15 +258,16 @@ float ShirleyLobe(float NdotK)
 subroutine(diffuse_model)
 vec4 Shirley() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-    // we repeat the UVs and we sample the texture
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
-    vec4 surfaceColor = texture(tex, repeated_Uv);
-    //vec4 surfaceColor = Surface_Color(repeated_Uv);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
+
+    vec4 surfaceColor = Surface_Color(final_UV);
 
     vec4 color = vec4(Ka*ambientColor,1.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
-    vec3 V = normalize(tViewDirection);
+    vec3 N = Normal_Map(final_UV);
 
     float NdotV = dot(N,V);
     float Vfactor = 28.0 * (1.0 - F0) * ShirleyLobe(NdotV) / 23.0 / PI;
@@ -244,35 +289,21 @@ vec4 Shirley() // this name is the one which is detected by the SetupShaders() f
     return color;
 }
 
-/*
-
-////////////////////////////////////////////////////////////////////
-// a subroutine for the Shirley model for diffuse component
-subroutine(diffuse_model)
-vec4 Temporary() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
-{
-        // we repeat the UVs and we sample the texture
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
-    //vec4 surfaceColor = texture(tex, repeated_Uv);
-    vec4 surfaceColor = Surface_Color(repeated_Uv);
-
-    return surfaceColor;
-}
-
-*/
-
 //////////////////////////////////////////
 // a subroutine for the Blinn-Phong model for multiple lights and texturing
 subroutine(specular_model)
 vec4 BlinnPhong() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
 
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
 
     // the specular component
     vec4 specular = vec4(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
     
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -286,8 +317,6 @@ vec4 BlinnPhong() // this name is the one which is detected by the SetupShaders(
         // if the lambert coefficient is positive, then I can calculate the specular component
         if(NdotL > 0.0)
         {
-            // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( tViewDirection );
 
             // in the Blinn-Phong model we do not use the reflection vector, but the half vector
             vec3 H = normalize(L + V);
@@ -325,13 +354,15 @@ float G1(float angle, float alpha)
 subroutine(specular_model)
 vec4 GGX() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
 
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -348,8 +379,6 @@ vec4 GGX() // this name is the one which is detected by the SetupShaders() funct
         // if the cosine of the angle between direction of light and normal is positive, then I can calculate the specular component
         if(NdotL > 0.0)
         {
-            // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( tViewDirection );
 
             // half vector
             vec3 H = normalize(L + V);
@@ -395,15 +424,19 @@ vec4 GGX() // this name is the one which is detected by the SetupShaders() funct
 subroutine(specular_model)
 vec4 AshikhminShirley()
 {
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
 
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    vec2 aniso_shininess = Roughness(final_UV, true);
 
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
-    vec3 T = Tangent_Map(repeated_Uv);
-    vec3 B = Bitangent_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
+    vec3 T = Tangent_Map(final_UV);
+    vec3 B = Bitangent_Map(final_UV);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -420,8 +453,6 @@ vec4 AshikhminShirley()
         // if the cosine of the angle between direction of light and normal is positive, then I can calculate the specular component
         if(NdotL > 0.0)
         {
-            // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-            vec3 V = normalize( tViewDirection );
 
             // half vector
             vec3 H = normalize(L + V);
@@ -434,11 +465,11 @@ vec4 AshikhminShirley()
             float NdotV = max(dot(N,V), 0.0);
             float HdotV = dot(H,V); // == dot(H,L) and it is always positive (when H is defined)
 
-            // TdotH squared, weighted by alpha X
-            float wTdotH_sqd = TdotH * TdotH * nX;
+            // TdotH squared, weighted by nX
+            float wTdotH_sqd = TdotH * TdotH * aniso_shininess.x;
 
-            // BdotH squared, weighted by alpha Y
-            float wBdotH_sqd = BdotH * BdotH * nY;
+            // BdotH squared, weighted by nY
+            float wBdotH_sqd = BdotH * BdotH * aniso_shininess.y;
 
             // Fresnel reflectance F (approx Schlick)
             vec3 F = vec3(pow(1.0 - HdotV, 5.0));
@@ -446,7 +477,7 @@ vec4 AshikhminShirley()
             F += F0;
 
             float denom_cosines = max(NdotV, NdotL) * HdotV;
-            float normCoeff = sqrt((nX+1.0)*(nY+1.0)) / 8.0 / PI;
+            float normCoeff = sqrt((aniso_shininess.x+1.0)*(aniso_shininess.y+1.0)) / 8.0 / PI;
 
             float exponent = (wTdotH_sqd + wBdotH_sqd) / (1.0 - (NdotH*NdotH));
 
@@ -470,17 +501,17 @@ vec4 AshikhminShirley()
 subroutine(specular_model)
 vec4 HeidrichSeidel() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
-
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
 
     // ambient component can be calculated at the beginning
     vec4 color = vec4(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
-    vec3 T = Tangent_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
+    vec3 T = Tangent_Map(final_UV);
 
-    // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-    vec3 V = normalize(tViewDirection);
     float TdotV = dot(T,V);
     
     //for all the lights in the scene
@@ -519,15 +550,19 @@ vec4 HeidrichSeidel() // this name is the one which is detected by the SetupShad
 subroutine(specular_model)
 vec4 Ward() // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
+    // we determine UVs based on wrapping (repeat) and displacement
+    vec3 V = normalize(tViewDirection);
+    vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
+    vec2 final_UV = mod(disp_UV, 1.0);
 
-    vec2 repeated_Uv = mod(interp_UV*repeat, 1.0);
+    vec2 aniso_roughness = Roughness(final_UV, false);
 
     // we initialize the final color
     vec3 color = vec3(0.0);
 
-    vec3 N = Normal_Map(repeated_Uv);
-    vec3 T = Tangent_Map(repeated_Uv);
-    vec3 B = Bitangent_Map(repeated_Uv);
+    vec3 N = Normal_Map(final_UV);
+    vec3 T = Tangent_Map(final_UV);
+    vec3 B = Bitangent_Map(final_UV);
 
     //for all the lights in the scene
     for(int i = 0; i < NR_LIGHTS; i++)
@@ -558,17 +593,17 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
             float NdotV = max(dot(N,V), 0.0);
 
             // TdotH squared, weighted by alpha X
-            float wTdotH_sqd = TdotH/alphaX;
+            float wTdotH_sqd = TdotH/aniso_roughness.x;
             wTdotH_sqd = wTdotH_sqd * wTdotH_sqd;
 
             // BdotH squared, weighted by alpha Y
-            float wBdotH_sqd = BdotH/alphaY;
+            float wBdotH_sqd = BdotH/aniso_roughness.y;
             wBdotH_sqd = wBdotH_sqd * wBdotH_sqd;
 
             // Fresnel and geometric attenuation aren't contemplated by the Ward model
             // They are substituted by this normalization factor
             float denom_cosines = max(NdotV*NdotL, 0.0001); // avoid dividing by zero along the profile of a mesh
-            float normCoeff = sqrt(denom_cosines) * 4.0 * PI * alphaX * alphaY; //normalization coefficient
+            float normCoeff = sqrt(denom_cosines) * 4.0 * PI * aniso_roughness.x * aniso_roughness.y; //normalization coefficient
             normCoeff = 1.0 / normCoeff; // at the denominator
 
             float exponent = (-2.0)*(wTdotH_sqd + wBdotH_sqd) / (1.0 + NdotH);
@@ -588,24 +623,73 @@ vec4 Ward() // this name is the one which is detected by the SetupShaders() func
 
 }
 
+subroutine(displacement)
+vec2 NoDisplacement(vec2 texCoords, vec3 viewDir)
+{
+    return texCoords;
+}
+
+subroutine(displacement)
+vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir)
+{ 
+    // number of depth layers
+    const float minLayers = 8;
+    const float maxLayers = 32;
+    float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), viewDir)));  
+    // calculate the size of each layer
+    float layerDepth = 1.0 / numLayers;
+    // depth of current layer
+    float currentLayerDepth = 0.0;
+    // the amount to shift the texture coordinates per layer (from vector P)
+    vec2 P = viewDir.xy / viewDir.z * heightScale; 
+    vec2 deltaTexCoords = P / numLayers;
+  
+    // get initial values
+    vec2  currentTexCoords     = texCoords;
+    float currentDepthMapValue = texture(depthMap, currentTexCoords).r;
+      
+    while(currentLayerDepth < currentDepthMapValue)
+    {
+        // shift texture coordinates along direction of P
+        currentTexCoords -= deltaTexCoords;
+        // get depthmap value at current texture coordinates
+        currentDepthMapValue = texture(depthMap, currentTexCoords).r;  
+        // get depth of next layer
+        currentLayerDepth += layerDepth;  
+    }
+    
+    // get texture coordinates before collision (reverse operations)
+    vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
+
+    // get depth after and before collision for linear interpolation
+    float afterDepth  = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = texture(depthMap, prevTexCoords).r - currentLayerDepth + layerDepth;
+ 
+    // interpolation of texture coordinates
+    float weight = afterDepth / (afterDepth - beforeDepth);
+    vec2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+
+    return finalTexCoords;
+}
+
 ////////////////////////////////////////////////////////////////////
 // subroutines for assigning N vector, in the abscence or presence of a normal map
 subroutine(normal_map)
-vec3 Off_N(vec2 repeated_Uv)
+vec3 Off_N(vec2 final_UV)
 {
     return vec3(0.0, 0.0, 1.0);
 }
 
 subroutine(normal_map)
-vec3 NormalMapping(vec2 repeated_Uv)
+vec3 NormalMapping(vec2 final_UV)
 {
-    return 2.0 * texture(normMap, repeated_Uv).xyz - 1.0;
+    return 2.0 * texture(normMap, final_UV).xyz - 1.0;
 }
 
 subroutine(normal_map)
-vec3 RotationMap_N(vec2 repeated_Uv)
+vec3 RotationMap_N(vec2 final_UV)
 {
-    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
     float b = q.y;
     float c = q.z;
@@ -614,22 +698,22 @@ vec3 RotationMap_N(vec2 repeated_Uv)
 }
 
 subroutine(tangent_map)
-vec3 Off_T(vec2 repeated_Uv)
+vec3 Off_T(vec2 final_UV)
 {
     return vec3(1.0, 0.0, 0.0);
 }
 
 subroutine(tangent_map)
-vec3 Diff_T(vec2 repeated_Uv)
+vec3 Diff_T(vec2 final_UV)
 {
-    vec2 V = 2.0 * texture(diffMap, repeated_Uv).xy - 1.0;
+    vec2 V = 2.0 * texture(diffMap, final_UV).xy - 1.0;
     return vec3(V.x, V.y, 0.0);
 }
 
 subroutine(tangent_map)
-vec3 RotationMap_T(vec2 repeated_Uv)
+vec3 RotationMap_T(vec2 final_UV)
 {
-    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
     float b = q.y;
     float c = q.z;
@@ -637,28 +721,52 @@ vec3 RotationMap_T(vec2 repeated_Uv)
     return vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c);
 }
 
+subroutine(tangent_map)
+vec3 DiffAndRotMap_T(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(diffMap, final_UV).xy - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
+    // float d = 0.0;
+    return V.x * vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c) + V.y * vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
+}
+
 subroutine(bitangent_map)
-vec3 Off_B(vec2 repeated_Uv)
+vec3 Off_B(vec2 final_UV)
 {
     return vec3(0.0, 1.0, 0.0);
 }
 
 subroutine(bitangent_map)
-vec3 Diff_B(vec2 repeated_Uv)
+vec3 Diff_B(vec2 final_UV)
 {
-    vec2 V = 2.0 * texture(diffMap, repeated_Uv).xy - 1.0;
+    vec2 V = 2.0 * texture(diffMap, final_UV).xy - 1.0;
     return vec3(-V.y, V.x, 0.0);
 }
 
 subroutine(bitangent_map)
-vec3 RotationMap_B(vec2 repeated_Uv)
+vec3 RotationMap_B(vec2 final_UV)
 {
-    vec3 q = 2.0 * texture(quaternionMap, repeated_Uv).xyz - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
     float b = q.y;
     float c = q.z;
     // float d = 0.0;
     return vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
+}
+
+subroutine(bitangent_map)
+vec3 DiffAndRotMap_B(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(diffMap, final_UV).xy - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
+    // float d = 0.0;
+    return -V.y * vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c) + V.x * vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
 }
 
 //////////////////////////////////////////

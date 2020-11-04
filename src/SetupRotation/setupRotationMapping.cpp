@@ -20,7 +20,7 @@ int main(int argc, char *argv)
     char* path = argv;
     int width, height, channels;
     unsigned char rgbBuffer[3];
-    unsigned char *img = stbi_load("../../textures/hammered_metal/Metal_Hammered_002_4K_normal.jpg", &width, &height, &channels, STBI_rgb);
+    unsigned char *img = stbi_load("../../textures/metal_tiles/Metal_Tiles_002_normal.jpg", &width, &height, &channels, STBI_rgb);
     if(img == NULL) 
     {
         std::cout << "Error in loading the image" << std::endl;
