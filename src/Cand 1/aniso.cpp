@@ -51,7 +51,7 @@
 
 ///////////////////////////////////////////////////////////
 // directional shininess(es) for Ashikhmin-Shirley model and sample count for Monte-Carlo integration
-GLfloat nU = 70.0f, nV = 20000.0f;
+GLfloat nU = 20000.0f, nV = 1.0f;
 GLuint sampleCount = 5u;
 
 // the paths for the various textures
@@ -103,7 +103,7 @@ void SetupShader(int shader_program);
 void PrintCurrentShader(int subroutine);
 
 // load image from disk and create an OpenGL texture
-GLint LoadTexture(const char* path);
+GLint LoadTexture(const char* path, bool repeat);
 GLint LoadCubeMap(const char* path, const char* format);
 
 // CUSTOM OVERLOAD
@@ -156,7 +156,7 @@ glm::vec3 F0(0.14, 0.14, 0.14);
 GLfloat nX = 1.5f, nY = 100.0f;
 
 // vector for the textures IDs
-vector<GLint> textureID;
+vector<GLuint> textureID;
 
 // UV repetitions
 glm::vec2 repeat = glm::vec2(1.0f, 1.0f);
@@ -271,18 +271,16 @@ int main()
 
     // we load the images and store them in a vector
     stbi_set_flip_vertically_on_load(true);    
-    textureID.push_back(LoadTexture(brdfLUTPath.c_str()));
-    textureID.push_back(LoadTexture(hvLUTPath.c_str()));
+    textureID.push_back(LoadTexture(brdfLUTPath.c_str(), false));
+    textureID.push_back(LoadTexture(hvLUTPath.c_str(), false));
     stbi_set_flip_vertically_on_load(false);
-    textureID.push_back(LoadTexture((materialPath + "albedo.jpg").c_str()));
-    textureID.push_back(LoadTexture((materialPath + "normal.jpg").c_str()));
-    textureID.push_back(LoadTexture((materialPath + "depth.png").c_str()));
-    textureID.push_back(LoadTexture((materialPath + "ao.jpg").c_str()));
-    textureID.push_back(LoadTexture((materialPath + "metallic.jpg").c_str()));
-    stbi_set_flip_vertically_on_load(true);  
-    textureID.push_back(LoadTexture((materialPath + "quaternion.png").c_str()));
-    textureID.push_back(LoadTexture((materialPath + "rotation.png").c_str()));    
-    stbi_set_flip_vertically_on_load(false);
+    textureID.push_back(LoadTexture((materialPath + "albedo.jpg").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "normal.jpg").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "depth.png").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "ao.jpg").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "metallic.jpg").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "quaternion.png").c_str(), true));
+    textureID.push_back(LoadTexture((materialPath + "rotation.png").c_str(), true));    
     textureID.push_back(LoadCubeMap(environmentPath.c_str(), "hdr"));
     textureID.push_back(LoadCubeMap(irradiancePath.c_str(), "hdr"));
 
@@ -345,7 +343,7 @@ int main()
         GLint albedoLocation = glGetUniformLocation(illumination_shader.Program, "albedo");
         GLint normalLocation = glGetUniformLocation(illumination_shader.Program, "normMap");
         GLint quaternionLocation = glGetUniformLocation(illumination_shader.Program, "quaternionMap");
-        GLint rotLocation = glGetUniformLocation(illumination_shader.Program, "rotationMap");
+        GLint rotationLocation = glGetUniformLocation(illumination_shader.Program, "rotationMap");
         GLint depthLocation = glGetUniformLocation(illumination_shader.Program, "depthMap");
         GLint aoLocation = glGetUniformLocation(illumination_shader.Program, "aoMap");
         GLint metallicLocation = glGetUniformLocation(illumination_shader.Program, "metallicMap");
@@ -405,27 +403,27 @@ int main()
         // quaternion map
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, textureID[4]);
-        glUniform1i(quaternionLocation, 4);
+        glUniform1i(depthLocation, 4);
 
         // tangent plane rotation map
         glActiveTexture(GL_TEXTURE5);
         glBindTexture(GL_TEXTURE_2D, textureID[5]);
-        glUniform1i(rotLocation, 5);
+        glUniform1i(aoLocation, 5);
 
         // depth (1 - height) map
         glActiveTexture(GL_TEXTURE6);
         glBindTexture(GL_TEXTURE_2D, textureID[6]);
-        glUniform1i(depthLocation, 6);
+        glUniform1i(metallicLocation, 6);
 
         // ambient occlusion map
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, textureID[7]);
-        glUniform1i(aoLocation, 7);
+        glUniform1i(quaternionLocation, 7);
 
         // metalness map
         glActiveTexture(GL_TEXTURE8);
         glBindTexture(GL_TEXTURE_2D, textureID[8]);
-        glUniform1i(metallicLocation, 8);
+        glUniform1i(rotationLocation, 8);
 
         // environment cube map
         glActiveTexture(GL_TEXTURE9);
@@ -470,7 +468,7 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(skybox_shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         environmentLocation = glGetUniformLocation(skybox_shader.Program, "environmentMap");
 
-        // irradiance cube map
+        // environment cube map
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, textureID[9]);
         glUniform1i(environmentLocation, 0);
@@ -660,7 +658,7 @@ void SetupShader(int program)
 
 //////////////////////////////////////////
 // we load the image from disk and we create an OpenGL texture
-GLint LoadTexture(const char* path)
+GLint LoadTexture(const char* path, bool repeat)
 {
 
     GLuint textureImage;
@@ -690,8 +688,18 @@ GLint LoadTexture(const char* path)
     
     glGenerateMipmap(GL_TEXTURE_2D);
     // we set how to consider UVs outside [0,1] range
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (repeat) 
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
+    else
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    
+
     // we set the filtering for minification and magnification
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

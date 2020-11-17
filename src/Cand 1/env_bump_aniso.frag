@@ -205,8 +205,8 @@ vec3 Specular_Irradiance()
 
     // 2): calculate the resulting specular component, using the preprocessed BRDF integral
 
-    float uLUT = max( abs(dot(T, V)), 1.0/255.0 );
-    float vLUT = max( abs(dot(B, V)), 1.0/255.0 );
+    float uLUT = abs(dot(T, V));
+    float vLUT = abs(dot(B, V));
     vec2 envBRDF  = texture( brdfLUT, vec2(uLUT, vLUT) ).rg; // the specular lobe has rectangular simmetry in the tangent plane
 
     float NdotV = max(dot(V, N), 0.0); // avoid raising a negative base
@@ -292,6 +292,13 @@ vec3 Off_T(vec2 final_UV)
 }
 
 subroutine(tangent_map)
+vec3 Diff_T(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
+    return vec3(V.x, V.y, 0.0);
+}
+
+subroutine(tangent_map)
 vec3 RotationMap_T(vec2 final_UV)
 {
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
@@ -302,10 +309,29 @@ vec3 RotationMap_T(vec2 final_UV)
     return vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c);
 }
 
+subroutine(tangent_map)
+vec3 DiffAndRotMap_T(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
+    // float d = 0.0;
+    return V.x * vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c) + V.y * vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
+}
+
 subroutine(bitangent_map)
 vec3 Off_B(vec2 final_UV)
 {
     return vec3(0.0, 1.0, 0.0);
+}
+
+subroutine(bitangent_map)
+vec3 Diff_B(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
+    return vec3(-V.y, V.x, 0.0);
 }
 
 subroutine(bitangent_map)
@@ -317,6 +343,18 @@ vec3 RotationMap_B(vec2 final_UV)
     float c = q.z;
     // float d = 0.0;
     return vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
+}
+
+subroutine(bitangent_map)
+vec3 DiffAndRotMap_B(vec2 final_UV)
+{
+    vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
+    vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
+    float a = q.x;
+    float b = q.y;
+    float c = q.z;
+    // float d = 0.0;
+    return -V.y * vec3(a*a + b*b - c*c, 2.0*b*c, 2.0*a*c) + V.x * vec3(2.0*b*c, a*a - b*b + c*c, -2.0*a*b);
 }
 
 void main(void)
@@ -338,7 +376,7 @@ void main(void)
     vec3 kd = 1.0 - F;
 //    kd *= 1.0 - metallic;
     vec3 temp = Diffuse(); //REMOVE
-    vec3 color = (/*kd * Diffuse() + */Specular()) * ao;
+    vec3 color = (kd * Diffuse() + Specular()) * ao;
 /*
     // HDR tonemapping
     color = color / (color + vec3(1.0));
