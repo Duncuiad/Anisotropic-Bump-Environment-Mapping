@@ -1,12 +1,20 @@
 {
 	"folders": [
 		{
+			"name": "Total Refactoring",
+			"path": "src/Cand 1"
+		},
+		{
 			"name": "IncludeDir",
 			"path": "include"
 		},
 		{
 			"name": "[Assets] Textures",
 			"path": "textures"
+		},
+		{
+			"name": "[Setup] Environment Preprocessing",
+			"path": "src/Environment Preprocessing"
 		},
 		{
 			"name": "[Setup] Rotation Mapping",
@@ -17,31 +25,31 @@
 			"path": "src/DifferentialMapping"
 		},
 		{
-			"name": "Basic Anisotropy",
+			"name": "[Ex] Basic Anisotropy",
 			"path": "src/Ex 1"
 		},
 		{
-			"name": "Improved GUI",
+			"name": "[Ex] Improved GUI",
 			"path": "src/Ex 2"
 		},
 		{
-			"name": "Tangent Space Calculations",
+			"name": "[Ex] Tangent Space Calculations",
 			"path": "src/Ex 3"
 		},
 		{
-			"name": "Normal Mapping Only",
+			"name": "[Ex] Normal Mapping Only",
 			"path": "src/Ex 4"
 		},
 		{
-			"name": "Tangent Mapping via Normal Mapping Perturbation",
+			"name": "[Ex] Tangent Mapping via Normal Mapping Perturbation",
 			"path": "src/Ex 5"
 		},
 		{
-			"name": "Application Overhaul",
+			"name": "[Ex] Application Overhaul",
 			"path": "src/Ex 6"
 		},
 		{
-			"name": "Differential Mapping",
+			"name": "[Ex] Differential Mapping",
 			"path": "src/Ex 7"
 		}
 	],

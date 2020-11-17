@@ -174,8 +174,7 @@ GLfloat heightScale = 0.01;
 /*
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 TODO:
-1) Implement textures manager
-2) Fix specular_color in fragment shader: it only appears in BlinnPhong and HeidrichSeidel (it determines light color or reflection cubemap)
+1) Implement textures manager (class Material)
 */
 
 /////////////////// MAIN function ///////////////////////
@@ -261,29 +260,30 @@ int main()
     // we print on console the name of the first subroutine used
     // we load the model(s) (code of Model class is in include/utils/model_v2.h)
     Model cubeModel("../../models/cube.obj");
-    Model sphereModel("../../models/sphere1.obj");
+    Model sphereModel("../../models/sphere.obj");
     Model bunnyModel("../../models/bunny_lp.obj");
     Model wallModel("../../models/plane.obj");
     Model planeModel("../../models/plane.obj");
 
     // we load the images and store them in a vector
     textureID.push_back(LoadTexture("../../textures/SoilCracked.png"));
-    /*
+    
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_normal.jpg"));
     textureID.push_back(LoadTexture("../../textures/hammered_metal/Metal_Hammered_002_4K_height.png"));
     textureID.push_back(LoadTexture("../../textures/hammered_metal/quaternionRotation.png"));
-    
+    /*
     textureID.push_back(LoadTexture("../../textures/metal_pattern/Metal_Pattern_003_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/metal_pattern/Metal_Pattern_003_normal.jpg"));
     textureID.push_back(LoadTexture("../../textures/metal_pattern/Metal_Pattern_003_height.png"));
     textureID.push_back(LoadTexture("../../textures/metal_pattern/quaternionRotation.png"));
     */
+    /*
     textureID.push_back(LoadTexture("../../textures/metal_tiles/Metal_Tiles_002_basecolor.jpg"));
     textureID.push_back(LoadTexture("../../textures/metal_tiles/Metal_Tiles_002_normal.jpg"));
     textureID.push_back(LoadTexture("../../textures/metal_tiles/Metal_Tiles_002_height.png"));
     textureID.push_back(LoadTexture("../../textures/metal_tiles/quaternionRotation.png"));
-    
+    */
     textureID.push_back(LoadTexture("../../textures/tangentPlaneMapping.png"));
     
 

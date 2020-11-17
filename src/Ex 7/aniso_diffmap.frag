@@ -1,23 +1,6 @@
 /*
-
-14_illumination_models_ML_TX.frag: as 12_illumination_models_ML.frag, but with texturing
-
-N.B. 1)  "13_illumination_models_ML_TX.vert" must be used as vertex shader
-
-N.B. 2) In this example, we consider point lights only. For different kind of lights, the computation must be changed (for example, a directional light is defined by the direction of incident light, so the lightDir is passed as uniform and not calculated in the shader like in this case with a point light).
-
-N.B. 3)  the different illumination models are implemented using Shaders Subroutines
-
-N.B. 4)  only Blinn-Phong and GGX illumination models are considered in this shader
-
-N.B. 5) see note 2 in the vertex shader for considerations on multiple lights management
-
-author: Davide Gadia
-
-Real-Time Graphics Programming - a.a. 2019/2020
-Master degree in Computer Science
-Universita' degli Studi di Milano
-
+TODO:
+1) total refactor of the fragment shader to specialize in PBR materials
 */
 
 #version 410 core
@@ -163,7 +146,7 @@ vec4 Texture(vec2 coord)
 
 ////////////////////////////////////////////////////////////////////
 
-/*
+
 // a subroutine for the choice of the (directional) roughness of the material, which uses material information
 subroutine(roughness)
 vec2 Material(vec2 coord, bool inverse)
@@ -173,7 +156,7 @@ vec2 Material(vec2 coord, bool inverse)
     float rY = max(2.0 * texture(diffMap, coord).w - 1.0, 0.0001);
     return vec2(inv/rX + (1.0 - inv) * rX, inv/rY + (1.0 - inv) * rY);
 }
-*/
+
 
 // a subroutine for the choice of the (directional) roughness of the material, which uses application parameters
 subroutine(roughness)
