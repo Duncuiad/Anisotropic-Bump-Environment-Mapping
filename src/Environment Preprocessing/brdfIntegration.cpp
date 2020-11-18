@@ -14,20 +14,31 @@
 
 const float PI = 3.14159265359;
 
+// conversion functions to manage reading/writing of vectors on textures
 unsigned int floatToIndex(float x, unsigned int size);
 void vec2ToGA(glm::vec2 vector, unsigned char here[2]);
 glm::vec3 RGBToVec3(unsigned char R, unsigned char G, unsigned char B);
 
+// low discrepancy sequence generation, needed for importance sampling of the half-vectors
 float RadicalInverse_VdC(unsigned int bits);
 glm::vec2 Hammersley(unsigned int i, unsigned int N);
 
+// -------------- GLOBAL VARIABLES -------------- //
+
+// the width and height of the output texture
+unsigned int size = 512;
+
+// directional shininess parameters of Ashikhmin-Shirley anisotropic illumination model
+float nU = 1.0;
+float nV = 1.0;
+
+// the sample count for importance sampling and Monte-Carlo integration
+const unsigned int SAMPLE_COUNT = 512u;
+
 int main() 
 {
-    unsigned int size = 512;
-    float nU = 0.0;
-    float nV = 0.0;
-    const unsigned int SAMPLE_COUNT = 512u;
 
+    // input management for the parameters nU and nV
     while (std::cout << "Insert value for nU: " && !(std::cin >> nU))
     {
         std::cin.clear(); //clear bad input flag
@@ -41,6 +52,7 @@ int main()
         std::cout << "Invalid input; please re-enter.\n";
     }
 
+    // automated management of the pathnames of source and output textures, based on nU and nV values
     std::string saveName = "../../textures/brdfIntegration";
     std::string sourceName = "../../textures/halfVectorSampling";
     unsigned int current = 0;
@@ -57,20 +69,24 @@ int main()
 
     std::string fullPath = saveName + shininess + "." + format;
     std::string sourcePath = sourceName + shininess + "." + sourceFormat;
-    int sourceWidth, sourceHeight, sourceChannels;
-    unsigned char gaBuffer[2];
 
-    unsigned char* image = new unsigned char[3*size*size];
-    glm::vec3* halfVectors;
+    // variables for managing reading/writing of textures
+    int sourceWidth, sourceHeight, sourceChannels; // values are stored here by the stbi_load call
+    unsigned char gaBuffer[2]; // given to Vec2ToGA, which stores the output values for each texel in the buffer
+
+    unsigned char* image = new unsigned char[3*size*size]; // input texture buffer
+    glm::vec3* halfVectors; // array of H vectors as read from the source texture
 
     // check if the file already exists, in which case the program doesn't overwrite it
     while(stbi_info(fullPath.c_str(), NULL, NULL, NULL) != 0) // this file already exists
     {
         current++;
+
+        // incrementally change the name of the file to write onto
         fullPath = saveName + shininess + " " + std::to_string(current) + "." + format;
     }
 
-    // read the source texture and save the vectors in the halfVector array
+    // read the source texture
     unsigned char *source = stbi_load(sourcePath.c_str(), &sourceWidth, &sourceHeight, &sourceChannels, STBI_rgb);
     if (source == NULL) 
     {
@@ -79,6 +95,7 @@ int main()
         exit(1);
     }
 
+    // save the vectors in the halfVector array
     halfVectors = new glm::vec3[sourceWidth*sourceHeight];
     for (int l = 0; l < sourceWidth*sourceHeight; l++)
     {
@@ -90,28 +107,23 @@ int main()
     for (int j = 0; j < size; j++)
     {
 
+        // progress counter
         std::cout << "\rWorking on row " << j + 1 << " of " << size << std::flush;
 
         for (int i = 0; i < size; i++)
         {
 
+            // these are the (u,v) coordinates for the output texture
             float TdotV = ((float) i) / ((float) size); // from the left of the image
             float BdotV = ((float) size - j - 1) / ((float) size); // from the bottom of the image
             float TBnormSquared = BdotV*BdotV + TdotV*TdotV;
 
-            if (TBnormSquared >= 1.0) // this doesn't represent a unit vector
-            {
-                /*
-                            unsigned int bufferPosition = 3*(size*j + i);
-
-                            // set this texel to black and continue to the next one
-                            image[bufferPosition] = 0;
-                            image[bufferPosition + 1] = 0;
-                            image[bufferPosition + 2] = 0;
-
-                            continue;
-                */
-            }
+            // TdotV and BdotV are cosines for the vector V on the orthonormal basis T, B, N, so their square sum cannot exceed 1;
+            // not only that, but it holds that <T,V>^2 + <B,V>^2 + <N,V>^2 = 1, where <,> is the dot product;
+            // this lets us reconstruct the z-coordinate of the vector V, but only for coordinates that satisfy
+            // TdotV * TdotV + BdotV * BdotV <= 1; (a)
+            // for the rest of the texels, I continuously extend the coordinate mapping setting NdotV = 0;
+            // this helps to avoid artifacts when the application linearly interpolates around texels near the boundary of inequality (a)
         
             float NdotV = TBnormSquared >= 1.0 ? 0.0 : glm::sqrt(1.0 - TBnormSquared);
 
@@ -122,35 +134,54 @@ int main()
             V.z = NdotV;
             V = glm::normalize(V);
 
+            // output values, initialized at 0.0
             float sizeCoeff = 0.0;
             float biasCoeff = 0.0;
 
-            //float normCoeff = sqrt((nU + 1.0)*(nV + 1.0) / (2.0 * PI));
-
+            // integration loop
             for(unsigned int sIndex = 0u; sIndex < SAMPLE_COUNT; sIndex++)
             {
+                // low discrepancy sequence on the unit square
                 glm::vec2 Xi = Hammersley(sIndex, SAMPLE_COUNT);
-                unsigned int xIndex = floatToIndex(Xi[0], sourceWidth); // from left to right
-                unsigned int yIndex = floatToIndex(Xi[1], sourceHeight); // from bottom to top
+                unsigned int xIndex = floatToIndex(Xi[0], sourceWidth);
+                unsigned int yIndex = floatToIndex(Xi[1], sourceHeight);
                 unsigned int linearIndex = xIndex + sourceWidth * yIndex; // stride length is sourceWidth
+
+                // the sequence is mapped from the square to the upper hemisphere via texture lookup
                 glm::vec3 H = halfVectors[linearIndex];
 
+                // obtain L as reflection of V against H
+                // somehow glm::reflect returns the opposite of the reflection vector:
+                // it states it calculates glm::reflect(I,N) = I - 2.0 * dot(I,N) * N;
+                // this is weird, but I fix this negating the result;
                 glm::vec3 L = -glm::normalize(glm::reflect(V, H));
 
+                // cosines needed for the brdf calculation
                 float NdotL = glm::max(L.z, 0.0f);
-                //float NdotH = glm::clamp(H.z, 0.0f, 0.999f); // avoid dividing by zero in the exponent division
-                //float TdotH = H.x;
-                //float BdotH = H.y;
-                float VdotH = glm::max(glm::dot(V, H), 0.001f); // avoid dividing by 0 in the reducedBRDF division
-/*
-                if (NdotV > 0.5)
-                    std::cout << "NdotV: " << NdotV << ", NdotL: " << NdotL << 
-                    ", V: " << V.x << " " << V.y << " " << V.z << " " <<
-                    ", L: " << L.x << " " << L.y << " " << L.z << " " << std::endl;
-*/
+                float VdotH = glm::max(glm::dot(V, H), 0.001f); // avoid raising a negative base in the Fc calculation below
+
                 if(NdotL > 0.0)
                 {
-                    // calculate the BRDF
+
+                    /*
+                    Ashikhmin-Shirley BRDF:
+                    p.H(H) = c * NdotH ^ [(nU * TdotH^2 + nV * BdotH^2)/(1 - NdotH^2)], where
+                    c = sqrt((nU + 1) * (nV + 1)) / (2*PI)
+                    F(VdotH) = F0 + (1 - F0) * (1 - VdotH) ^ 5 = F0 * (1 - (1-VdotH)^5) + (1-VdotH)^5
+                    f(H) = 1 / ( 4 * VdotH * max(NdotV,NdotL) )
+
+                    p(L) = p.H(H) / (4 * VdotH), where H is the half-vector for this choice of V and L
+
+                    BRDF(V,L) = p.H(H) * f(H) * F(VdotH)
+
+                    Since we sample L based on probability density p, what we sum in this Monte-Carlo integration is
+                    BRDF(V,L) / p(L) = p.H(H) * f(H) * F(VdotH) / p(L);
+
+                    that is, we sum F(VdotH)/max(NdotV, NdotL) (against NdotL)
+                    in fact, we split F(VdotH) in the two summands F0 * (1 - (1-VdotH)^5) and (1-VdotH)^5
+                    */
+
+                    // calculate the BRDF (having divided by the probability density)
                     float numerator = NdotL;
                     float denominator = glm::max(NdotV, NdotL);
                     float reducedBRDF = numerator/denominator;
@@ -164,10 +195,12 @@ int main()
             sizeCoeff /= float(SAMPLE_COUNT);
             biasCoeff /= float(SAMPLE_COUNT);
 
+            // save values onto texture
             vec2ToGA(glm::vec2(sizeCoeff, biasCoeff), gaBuffer);
 
             unsigned int bufferPosition = 3*(size*j + i);
 
+            // I save the image as RGB with null blue component to avoid only having grey and alpha channels, which impedes debugging by sight
             image[bufferPosition] = gaBuffer[0];
             image[bufferPosition + 1] = gaBuffer[1];
             image[bufferPosition + 2] = 0; // blue channel

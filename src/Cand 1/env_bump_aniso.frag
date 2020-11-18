@@ -130,44 +130,46 @@ vec3 Specular_Irradiance()
 
     // 1): sample and integrate the environment map
 
-    // normal in tangent space coordinates: for calculations
+    // tangent, bitangent and normal in tangent space coordinates: for calculations
+    // NOTE: this is where bump mapping happens when enabled, so don't assume the vectors are axis-aligned
     vec3 N = Normal_Map(final_UV);
     vec3 T = Tangent_Map(final_UV);
     vec3 B = Bitangent_Map(final_UV);
-
-/*
-    // normal, tangent and bitangent in world coordinates: for mapping L to world coordinates (to read the environment map)
-    vec3 wN = normalize(wTBNt * N);
-    vec3 wT = normalize(wTBNt * T);
-    vec3 wB = normalize(wTBNt * B);
-*/
 
     /*
     The original article by Epic Games introduces this approximation to preprocess the prefiltered map (not knowing in advance the value of V):
     vec3 R = N; // reflected vector
     vec3 V = R; // view vector
 
-    Since we can't preprocess, we might as well use the actual value of V (R is not needed in this instance)
+    Since we can't preprocess, we might as well use the actual value of V! (R is not needed in this instance)
     */
 
     float totalWeight = 0.0;
     vec3 convolutedColor = vec3(0.0);  
     for (uint i = 0u; i < sampleCount; i++)
     {
+        // low discrepancy sequence on the unit square
         vec2 Xi = Hammersley(i, sampleCount);
+
         // H, V and L are all in tangent space
-        Xi.y += 1.0 / 255.0; //ad hoc fix
+
+        // mapping the square to the upper hemisphere via texture lookup
         vec3 H = 2.0 * texture(halfVector, Xi).xyz - 1.0;
-        //H should be perturbed along with N
-        H = H.x * T + H.y * B + H.z * N;
+        // H should be perturbed along with the tangent space (the distribution is centered on the perturbed normal and rotated along the perturbed tangents)
+        H = H.x * T + H.y * B + H.z * N; // this is a matrix multiplication. Notice it maps tangent space to tangent space (it is an endomorphism)
+
+        // calculate L as the reflection of V against H
         vec3 L = normalize(2.0 * dot(V, H) * H - V);
 
         float NdotL = max(dot(N, L), 0.0);
         if(NdotL > 0.0)
         {
-            //vec3 wL = wT * L.x + wB * L.y + wN * L.z; // map the light vector to world coordinates (this is a matrix multiplication)
+            // map the light direction to world coordinates, usign the TBN matrix interpolated during rasterization
             vec3 wL = wTBNt * L;
-            convolutedColor += texture(environmentMap, wL).rgb * NdotL;
+
+            // look up of the environment map along the (world) light direction
+            convolutedColor += texture(environmentMap, wL).rgb * NdotL; // NdotL is the weight of the Monte-Carlo integration
+
             /*
             IMPORTANT NOTE: to avoid excessive noise due to undersampling, it would be better to sample a miplevel of the environment map
             Here is the point where it should be done.
@@ -198,6 +200,8 @@ vec3 Specular_Irradiance()
 
                 convolutedColor += textureLod(environmentMap, wL, mipLevel).rgb + NdotL
             */
+
+
             totalWeight += NdotL;
         }
     }
@@ -205,15 +209,21 @@ vec3 Specular_Irradiance()
 
     // 2): calculate the resulting specular component, using the preprocessed BRDF integral
 
+    // the BRDF has rectangular symmetry along the tangent and bitangent
+    // this means it is enough to calculate it assuming V is in the first quadrant of the tangent plane, as H is instead mapped to all of the quadrants (and only their relative position, regardless of simmetry, matters)
+    // this improves memory management by a factor of 4 at the same resolution
     float uLUT = abs(dot(T, V));
     float vLUT = abs(dot(B, V));
-    vec2 envBRDF  = texture( brdfLUT, vec2(uLUT, vLUT) ).rg; // the specular lobe has rectangular simmetry in the tangent plane
+
+    // look up size and bias coefficients from the BRDF LUT
+    vec2 envBRDF  = texture( brdfLUT, vec2(uLUT, vLUT) ).rg;
 
     float NdotV = max(dot(V, N), 0.0); // avoid raising a negative base
     vec3 F = vec3(pow(1.0 - NdotV, 5.0));
     F *= (1.0 - F0);
     F += F0;
 
+    // compose all of the contributions
     vec3 specular = convolutedColor * (F * envBRDF.x + envBRDF.y); // envBRDF.x is size, envBRDF.y is bias
 
     return specular;
@@ -364,8 +374,10 @@ void main(void)
     vec2 disp_UV = Displacement(mod(interp_UV*repeat, 1.0), V);
     vec2 final_UV = mod(disp_UV, 1.0);
 
+    // determine N for Fresnel reflectance calculation (in tangent space)
     vec3 N = normalize(Normal_Map(final_UV));
 
+    // look up metalness and ambient occlusion
     float metallic = texture(metallicMap, final_UV).x;
     float ao = texture(aoMap, final_UV).x;
 
@@ -373,16 +385,20 @@ void main(void)
     F *= (1.0 - F0);
     F += F0;
 
+    // ks + kd = 1.0, and we have ks = F
     vec3 kd = 1.0 - F;
 //    kd *= 1.0 - metallic;
-    vec3 temp = Diffuse(); //REMOVE
+
+    // notice ks = F is already included in Specular() calculations
     vec3 color = (kd * Diffuse() + Specular()) * ao;
+
 /*
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
 */
+
     colorFrag = vec4(color, 1.0);
 }
 

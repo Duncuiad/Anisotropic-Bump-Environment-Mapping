@@ -51,12 +51,12 @@
 
 ///////////////////////////////////////////////////////////
 // directional shininess(es) for Ashikhmin-Shirley model and sample count for Monte-Carlo integration
-GLfloat nU = 20000.0f, nV = 1.0f;
+GLfloat nU = 70.0f, nV = 20000.0f;
 GLuint sampleCount = 5u;
 
 // the paths for the various textures
 std::string texturesFolder = "../../textures/";
-std::string materialFolder = "hammered_metal/";
+std::string materialFolder = "metal_tiles/";
 std::string materialPath = texturesFolder + materialFolder;
 
 std::string cubeMapsFolder = "arches/";
