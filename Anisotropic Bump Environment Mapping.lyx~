@@ -1,0 +1,1069 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Bumped Environment Mapping for Anisotropic Shaders
+\end_layout
+
+\begin_layout Author
+Federico Marcolongo, 940085
+\end_layout
+
+\begin_layout Abstract
+Anisotropic shaders need information about the whole tangent space orientation
+ to render illumination models, as opposed to their isotropic counterpart,
+ which only needs information concerning the normal direction to the rendered
+ surface.
+ This implies new challenges to address in the implementation of a real-time
+ application, as well as many possibilities to render effects isotropic
+ shaders couldn't describe.
+ Keeping in mind the requirements a real-time rendering process needs to
+ run smoothly, I try to make the best use of the aforementioned possibilities
+ while maintaining accetpable performance.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Subsection
+Goal of the project
+\end_layout
+
+\begin_layout Subsection
+Notation
+\end_layout
+
+\begin_layout Section
+Quick Overview of Anisotropic Illumination Models
+\end_layout
+
+\begin_layout Subsection
+Anisotropic Shading as opposed to Isotropic Shading
+\end_layout
+
+\begin_layout Standard
+The Bidirectional Radiance Distribution Function (BRDF) is, in the phisical
+ description of the illumination of surfaces, the function describing how
+ a particular material emits back the light it receives from the environment.
+ The graph of this function is 4-dimensional, as its domain and codomain
+ are both bidimensional hemispheres.
+ The description of such a function for any possible kind of actual physical
+ material is a very complex task, which is why many different models have
+ been proposed in computer graphics to strike a balance between physical
+ accuracy and computational complexity, all the more so in the case of real-time
+ graphics processing.
+\end_layout
+
+\begin_layout Standard
+The two realms of illumination models I mean to discuss, as per the title
+ of this subsection, derive their differences precisely from the intention
+ of describing real life materials.
+ In particular, they make different assumptions concerning the overall orientati
+on of microscopical imperfections on the surface of these different kinds
+ of material.
+ Where isotropic models mean to describe surfaces whose imperfections have
+ radial symmetry (given also their abundance in nature), their anisotropic
+ counterpart concerns itself with the description of surfaces where these
+ imperfections are aligned along a particular direction than another.
+ This is the case, for example, in the natural occurrences of brushed metal,
+ hair, vynil records and CDs (whose grooves have a concentrical orientation),
+ and surfaces varnished with a stroke of coating.
+\end_layout
+
+\begin_layout Standard
+Given the dependence of the re-emitted light on the orientation of these
+ imperfections, an anisotropic illumination model needs to account for the
+ orientation of the tangent plane to the surface (the direction of its tangent
+ and bitangent vectors, as described in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Tangent-Space"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), and not just for the relative position of the view- (or incident light-)
+ vector to the surface normal vector - which is the case for most isotropic
+ models.
+\end_layout
+
+\begin_layout Standard
+Below are presented a few models addressing the issue of anisotropic surfaces.
+ Since the models are fairly old (in terms of computer graphics development
+ history) we have to keep in mind that the simplest (and least physically
+ accurate) of them, the Heidrich-Seidel 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-3"
+literal "false"
+
+\end_inset
+
+ model was developed for real time applications running on 1990s GPUs, and
+ consequently concentrates on having the fastest implementation possible,
+ while the Ward 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-4"
+literal "false"
+
+\end_inset
+
+ and Ashikhmin-Shirley 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+literal "false"
+
+\end_inset
+
+ models where developed with (offline) ray-tracing applications in mind.
+ The fast development of GPU processing power during the last two decades
+ is what allows me, in this particular instance, to use these models for
+ demanding tasks, even on real-time applications.
+ This project will be mainly focused on the Ashikhmin-Shirley model, for
+ reasons that will be discussed later in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Why-Ashikhmin-Shirley?"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Heidrich-Seidel
+\end_layout
+
+\begin_layout Standard
+This Phong-like model from 1998 means to describe anisotropic surfaces as
+ (2D) bundles of onedimensional strands (curves in 3D space) each having
+ a tangent vector in each of its points.
+ Given a point on a surface, it uses this tangent 
+\begin_inset Formula $T$
+\end_inset
+
+ and the light-incidence direction 
+\begin_inset Formula $L$
+\end_inset
+
+ to calculate a 
+\begin_inset Quotes eld
+\end_inset
+
+shading normal vector
+\begin_inset Quotes erd
+\end_inset
+
+ 
+\begin_inset Formula $N'$
+\end_inset
+
+ which corresponds to the normal vector used for rendering one-dimensional
+ strands.
+ This vector is obtained implicitly as 
+\begin_inset Formula 
+\[
+\left\langle L,N'\right\rangle =\sqrt{1-\left\langle L,T\right\rangle ^{2}}
+\]
+
+\end_inset
+
+which represents the diffuse component of the model.
+ Here and below, following the authors' notation, 
+\begin_inset Formula $\left\langle V,W\right\rangle $
+\end_inset
+
+ represents the dot product of vectors 
+\begin_inset Formula $V$
+\end_inset
+
+ and 
+\begin_inset Formula $W$
+\end_inset
+
+.
+ Similarly, the dot product of the view vector 
+\begin_inset Formula $V$
+\end_inset
+
+ and the reflected light vector 
+\begin_inset Formula $R$
+\end_inset
+
+ (against 
+\begin_inset Formula $N'$
+\end_inset
+
+ instead of the surface normal 
+\begin_inset Formula $N$
+\end_inset
+
+) is found to be 
+\begin_inset Formula 
+\[
+\left\langle V,R\right\rangle =\sqrt{1-\left\langle L,T\right\rangle ^{2}}\sqrt{1-\left\langle V,T\right\rangle ^{2}}-\left\langle L,T\right\rangle \left\langle V,T\right\rangle 
+\]
+
+\end_inset
+
+These values are then insterted in a Phong-like (-direct-light) equation
+ representing the model:
+\begin_inset Formula 
+\[
+I_{o}=k_{a}I_{a}+\left(k_{d}\left\langle L,N'\right\rangle +k_{s}\left\langle V,R\right\rangle ^{n}\right)I_{i}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $k_{a}$
+\end_inset
+
+, 
+\begin_inset Formula $k_{d}$
+\end_inset
+
+, 
+\begin_inset Formula $k_{s}$
+\end_inset
+
+ are respectively the ambient, diffuse and specular coefficients
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $I_{o}$
+\end_inset
+
+, 
+\begin_inset Formula $I_{a}$
+\end_inset
+
+, 
+\begin_inset Formula $I_{i}$
+\end_inset
+
+ are respectively the observed, ambient and incident light intensities
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $n$
+\end_inset
+
+ is the Phong shininess coefficient
+\end_layout
+
+\begin_layout Standard
+This model is clearly not bidirectional, it doesn't account for surface
+ roughness, and doesn't conserve radiant energy, just like the (isotropic)
+ Phong illumination model it is based on.
+ Despite this, the authors describe a method to pre-process lookup textures
+ storing the values of the square root-terms involved in the calculations,
+ achieving the goal of the paper in terms of assuring a fast real-time rendering
+ of anisotropic properties.
+\end_layout
+
+\begin_layout Subsection
+Ward
+\end_layout
+
+\begin_layout Standard
+This hybrid empirical- and theoretical- model by Ward means to offer a physics-b
+ased, energy conserving, fully bidirectional anisotropic BRDF along with
+ an explicit method for importance sampling of the halfway vectors 
+\begin_inset Formula $\mathrm{\mathbf{h}}$
+\end_inset
+
+, for BRDF integration purposes.
+\end_layout
+
+\begin_layout Standard
+It is parameterized by diffuse and specular coefficients
+\begin_inset Formula $\rho_{d}$
+\end_inset
+
+ and 
+\begin_inset Formula $\rho_{s}$
+\end_inset
+
+ and directional roughness coefficients 
+\begin_inset Formula $\alpha_{x}$
+\end_inset
+
+ (along the tangent direction) and 
+\begin_inset Formula $\alpha_{y}$
+\end_inset
+
+ (along the bitangent direction), all of which have a physical interpretation
+ and can be used to fit empirical data obtained from sampling the BRDF of
+ actual materials in a lab setting.
+\end_layout
+
+\begin_layout Standard
+The model's BRDF is then built around a Gaussian distribution function with
+ elliptical simmetry:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+f(\mathbf{v},\mathbf{l})=\frac{\rho_{d}}{\pi}+\rho_{s}\frac{1}{\sqrt{(\mathrm{\mathbf{nv}})(\mathbf{\mathrm{\mathbf{nl}}})}}\frac{1}{4\pi\alpha_{x}\alpha_{y}}e^{-2\frac{\left(\frac{(\mathbf{\mathrm{\mathbf{th}}})}{\alpha_{x}}\right)^{2}+\left(\frac{(\mathbf{\mathrm{\mathbf{bh}}})}{\alpha_{y}}\right)^{2}}{1+(\mathrm{\mathbf{nh}})}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Although the lighting model is solidly grounded on empirical data and a
+ widely accepted distribution for microsurface orientation, it intentionally
+ lacks geometry visibility and Fresnel reflectance terms.
+ This is what most significantly separates it from the class of 
+\begin_inset Quotes eld
+\end_inset
+
+modern
+\begin_inset Quotes erd
+\end_inset
+
+ PBR (phisically-based rendering) shaders.
+\end_layout
+
+\begin_layout Standard
+For the purposes of this project, it should also be noted that the Ward
+ model, although it is endowed with an importance sampling method for the
+ generation of the half-vectors 
+\begin_inset Formula $h$
+\end_inset
+
+, doesn't offer an explicit distribution function for the said vectors,
+ which would be useful in a Monte-Carlo setting (as pointed in
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+literal "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Subsection
+Ashikhmin-Shirley
+\end_layout
+
+\begin_layout Standard
+This mostly theoretical Phong-based model proposes a bidirectional, energy
+ conserving, Fresnel-reflectance weighted anisotropic specular BRDF.
+ It also proposes an energy conserving diffuse term to use along the specular
+ model, instead of a lambertian one.
+ This diffuse term won't however be the focus of this project.
+\end_layout
+
+\begin_layout Standard
+The specular BRDF is parameterized by two directional shininess coefficients
+ 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+, which split the role of the Phong shininess coefficient 
+\begin_inset Formula $n$
+\end_inset
+
+ in the tangent and bitangent directions.
+\end_layout
+
+\begin_layout Standard
+The model crucially provides both an importance sampling generation process
+ for half-vectors and their explicit distribution function.
+ Since integration of the BRDF is done not in the space of half-vectors
+ but in the space of incident light vectors, the authors provide the explicit
+ relation between the distribution functions of the vectors in the two spaces
+ mentioned above: 
+\begin_inset Formula $p_{h}(\mathbf{h})=4(\mathbf{vh})p_{l}(\mathbf{l})$
+\end_inset
+
+ for 
+\begin_inset Formula $\mathbf{l}=2(\mathbf{vh})\mathbf{h}-\mathbf{v}$
+\end_inset
+
+ (
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+ is the half-vector of vectors 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+The authors describe:
+\begin_inset Formula 
+\[
+p_{h}(\mathbf{h})=\frac{\sqrt{(n_{u}+1)(n_{v}+1)}}{2\pi}(\mathbf{nh})^{\frac{n_{u}(\mathbf{th})^{2}+n_{v}(\mathbf{bh})^{2}}{1-(\mathbf{nh})^{2}}}
+\]
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "Ashikhmin-Shirley-h-distribution"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+And obtain the full specular BRDF as:
+\begin_inset Formula 
+\[
+f_{s}(\mathbf{v},\mathbf{l})=\frac{p_{h}(\mathbf{h})F((\mathbf{vh}))}{4(\mathbf{vh})\max((\mathbf{nv}),(\mathbf{nl}))}
+\]
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "Ashikhmin-Shirley-specular-BRDF"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the original paper as well as for the purposes of this project, the Fresnel
+ reflectance term is estimated making use of the Schlick approximation:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+F((\mathbf{vh}))=F_{0}+(1-F_{0})(1-(\mathbf{vh}))^{5}=F_{0}(1-(1-(\mathbf{vh}))^{5})+(1-(\mathbf{vh}))^{5}
+\]
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "Fresnel-reflectance-Schlick"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Anticipating the discussion contained in subsection 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Pre-processing"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, the final form of the Ashikhmin-Shirley (specular) BRDF, ready for Monte-Carlo
+ integration with importance sampling, is:
+\begin_inset Formula 
+\[
+f_{s}(\mathbf{v},\mathbf{l})=p_{l}(\mathbf{l})\left(F_{0}\frac{1-(1-(\mathbf{vh}))^{5}}{\max((\mathbf{nv}),(\mathbf{nl}))}+\frac{(1-(\mathbf{vh}))^{5}}{\max((\mathbf{nv}),(\mathbf{nl}))}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Bump Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Bump-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+From vertex-level to fragment-level detail
+\end_layout
+
+\begin_layout Standard
+It is common in computer graphics to want to obtain a certain level of detail
+ on the rendered surface without having to indeterminately increase the
+ resolution of the underlying mesh.
+ This is most common in the texturing of a 3D model: the values of the color
+ attribute attribute are removed from the vertices and given to a proxy,
+ which in the case of UV-mapping (a common technique addressing the issue)
+ is an image whose pixels (named texels) are accessed by their coordinates.
+ The vertices then store their (u,v) position on such image and rasterization
+ takes care of interpolating the attribute over the faces of the mesh.
+\end_layout
+
+\begin_layout Standard
+The most important aspect of this process, for the goal of this project,
+ is that not only can UV-mapping manage a fragment-level description of
+ color, but a fragment-level description of vectors as well.
+ The x, y, z components of a 3D vector are mapped respectively to the R,
+ G, B channels of the texture image (which range between 0 and 
+\begin_inset Formula $2^{i}-1$
+\end_inset
+
+, where 
+\begin_inset Formula $i$
+\end_inset
+
+ is the bit depth of the image).
+\end_layout
+
+\begin_layout Standard
+To maintain decent resolution in the mapping of vectors, this process works
+ best for vector 
+\begin_inset Quotes eld
+\end_inset
+
+fields
+\begin_inset Quotes erd
+\end_inset
+
+ whose components are uniformly bounded by 
+\begin_inset Quotes eld
+\end_inset
+
+small
+\begin_inset Quotes erd
+\end_inset
+
+ constants, which is fortunately the case for the objects closest to our
+ needs when implementing illumination models: unit vectors in 3D space.
+ Their components all range, in fact, between -1 and 1.
+\end_layout
+
+\begin_layout Standard
+UV-mapping is what provides fragment-level precision (albeit with fixed
+ resolution) to all of the calculations we are tasked to perform when implementi
+ng illumination models.
+ It is a very powerful instrument in real-time rendering, and one whose
+ preservation is the main driving factor behind many of the (hardest) implementa
+tion choices when treating Environment Mapping in section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Environment-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Tangent Space
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Tangent-Space"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Since when mapping vectors to textures we are not actually mapping directly
+ vector objects, but their components with respect to a certain frame of
+ reference, we want this reference to be the most neutral space we can achieve.
+ The meaning of this is that not only it shouldn't depend on model and view
+ transformations, but it shouldn't depend on the coordinates of vertices
+ in object space either.
+ This is the reason why we express UV-mapped vectors in tangent space, which
+ we define, per vertex, as the span of the plane 
+\emph on
+tangent
+\emph default
+ to the mesh in the vertex (which has a precise geometrical meaning) and
+ the direction 
+\emph on
+normal
+\emph default
+ to the mesh in that same vertex (with the convention of taking it 
+\emph on
+outwards-pointing
+\emph default
+ in the case of a 2-manifold closed mesh).
+\end_layout
+
+\begin_layout Standard
+Thus, to find the vectors which form a basis of this tangent space, we must
+ explain both how to find the 
+\emph on
+normal
+\emph default
+ 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ vector and the 
+\emph on
+tangent
+\emph default
+ 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ and 
+\emph on
+bitangent
+\emph default
+ 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ vectors that form the basis of the tangent plane, to obtain an actual 
+\begin_inset Formula $(\mathbf{t},\mathbf{b},\mathbf{n})$
+\end_inset
+
+ orthonormal frame of reference for the UV-mapped vectors.
+\end_layout
+
+\begin_layout Standard
+Finding the 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ vector in a certain vertex V is usually achieved in computer graphics by
+ averaging (with according weights) the 
+\emph on
+face normals
+\emph default
+ of all the faces sharing V, which themselves are easily computed through
+ linear operations involving the vertices adjacent to V on each face.
+\end_layout
+
+\begin_layout Standard
+Computing 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ is, instead, where UV-mapping comes into play.
+ This is because UV-mapping is the closest thing there is, in computer graphics,
+ to explicitly determining a chart of the 2-manifold embedded in 3D space
+ represented by the mesh.
+ The process goes like this: the texture image is itself a 2D linear space,
+ whose tangent space (in each texel) is the span of two orthogonal vectors
+ 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, respectively aligned along the 
+\emph on
+u
+\emph default
+ and 
+\emph on
+v
+\emph default
+ axis of the texture.
+ Two vectors 
+\begin_inset Formula $\mathbf{t'}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{b'}$
+\end_inset
+
+ are constructed on V so that their UV-mapping (mathematically, the 
+\emph on
+differential
+\emph default
+ of the mapping) are resp.
+ 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+ The issue with taking directly 
+\begin_inset Formula $\mathbf{t}=\mathbf{t'}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{b}=\mathbf{b'}$
+\end_inset
+
+ is that 
+\begin_inset Formula $\mathbf{t'}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{b'}$
+\end_inset
+
+are only orthogonal if the UV-mapping is conformal (i.
+ e.
+ it preserves angles) and even so, they are unit vectors only if the mapping
+ is an isometry (i.
+ e.
+ it preserves distances), which it rarely is.
+\end_layout
+
+\begin_layout Standard
+To obtain the orthonormal frame of reference mentioned above, 
+\begin_inset Formula $(\mathbf{t'},\mathbf{b'},\mathbf{n})$
+\end_inset
+
+ is orthonormalized via the Gram-Schmidt process, setting 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+ & \mathbf{t}=\frac{\mathbf{t'}-(\mathbf{nt'})\mathbf{n}}{\left\Vert \mathbf{t'}-(\mathbf{nt'})\mathbf{n}\right\Vert }\\
+ & \mathbf{b}=\mathbf{n\times\mathbf{t}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where the order of the cross product means the frame of reference will have
+ positive orientation.
+ Notice that, since the setting is 3-dimensional, we didn't actually have
+ to determine 
+\begin_inset Formula $\mathbf{b'}$
+\end_inset
+
+ for this purpose, but computer graphics usually compute it for completeness.
+\end_layout
+
+\begin_layout Standard
+The 
+\begin_inset Formula $(\mathbf{t},\mathbf{b},\mathbf{n})$
+\end_inset
+
+ frame of reference obtained this way completely describes the space where
+ both the UV-mapping of vectors and lighting calculations will be made in
+ the implementation of this project.
+ The fact that this reference frame is orthonormal grants that the transformatio
+n from tangent space to object space is an orthogonal linear transformation,
+ and as such preserves distances (hence dot products).
+ In particular, this transformation is represented by the 3x3 matrix having
+ the reference frame vectors as columns.
+\end_layout
+
+\begin_layout Subsection
+Normal Mapping
+\end_layout
+
+\begin_layout Standard
+Having set the context in which we can use textures to store values of vectors
+ varying on the surface to be rendered, it is now time to mention the most
+ widely used and readily available kind of vector mapping: Normal Mapping.
+\end_layout
+
+\begin_layout Standard
+The idea behind this method is that we can mimic the appearance of bumps
+ and indentations over the surface without tessellating and displacing faces
+ and vertices of the mesh, by perturbing the normals at a fragment level
+ instead.
+\end_layout
+
+\begin_layout Subsection
+Quaternion Mapping
+\end_layout
+
+\begin_layout Subsection
+Tangent Plane Rotation Mapping
+\end_layout
+
+\begin_layout Subsection
+Parallax Occlusion Mapping
+\end_layout
+
+\begin_layout Section
+Environment Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Environment-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Overview
+\end_layout
+
+\begin_layout Subsection
+Diffuse Component
+\end_layout
+
+\begin_layout Subsection
+Specular Component
+\end_layout
+
+\begin_layout Subsubsection
+Why Ashikhmin-Shirley?
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Why-Ashikhmin-Shirley?"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Importance Sampling
+\end_layout
+
+\begin_layout Subsubsection
+Pre-processing
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Pre-processing"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Real-Time Monte-Carlo integration of environment luminance
+\end_layout
+
+\begin_layout Section
+Implementation Details
+\end_layout
+
+\begin_layout Subsection
+Languages and Libraries
+\end_layout
+
+\begin_layout Subsection
+File System organization for Asset import
+\end_layout
+
+\begin_layout Subsection
+Compiling and using the pre-processing applications
+\end_layout
+
+\begin_layout Section
+Results and Performance
+\end_layout
+
+\begin_layout Subsection
+Rendered Models
+\end_layout
+
+\begin_layout Subsection
+Performance and Quality analysis
+\end_layout
+
+\begin_layout Subsection
+Possible optimization improvements
+\end_layout
+
+\begin_layout Subsubsection
+Capping the number of samples with minimal quality loss
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "LearnOpenGL"
+key "key-1"
+literal "false"
+
+\end_inset
+
+learnopengl.com
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "AsSh00"
+key "key-2"
+literal "false"
+
+\end_inset
+
+Michael Ashikhmin and Peter Shirley.
+ An Anisotropic Phong Light Reflection Model.
+ University of Utah, 2000
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "HeSe98"
+key "key-3"
+literal "false"
+
+\end_inset
+
+Wolfgang Heidrich and Hans-Peter Seidel.
+ Efficient Rendering of Anisotropic Surfaces Using Computer Graphics Hardware.
+ University of Erlangen, 1998
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "Ward92"
+key "key-4"
+literal "false"
+
+\end_inset
+
+Gregory J.
+ Ward.
+ Measuring and modeling anisotropic reflection.
+ Computer Graphics, 26(4):265–272, July 1992.
+ ACM Siggraph ’92 Conference Proceedings.
+\end_layout
+
+\end_body
+\end_document

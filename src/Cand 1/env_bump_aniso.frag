@@ -64,6 +64,11 @@ uniform sampler2D halfVector; //in tangent space coordinates
 // u parameter is NdotV, v parameter is TdotV
 uniform sampler2D brdfLUT;
 
+uniform bool debugDiffuse;
+uniform bool debugPrefiltered;
+uniform bool debugBRDF;
+uniform bool hdrGamma;
+
 ////////////////////////////////////////////////////////////////////
 
 // subroutine uniform for the choice of the specular lighting component method
@@ -212,13 +217,17 @@ vec3 Specular_Irradiance()
     // the BRDF has rectangular symmetry along the tangent and bitangent
     // this means it is enough to calculate it assuming V is in the first quadrant of the tangent plane, as H is instead mapped to all of the quadrants (and only their relative position, regardless of simmetry, matters)
     // this improves memory management by a factor of 4 at the same resolution
-    float uLUT = abs(dot(T, V));
-    float vLUT = abs(dot(B, V));
+    float absTdotV = abs(dot(T, V));
+    float absBdotV = abs(dot(B, V));
+    float NdotV = clamp(dot(V, N), 0.0, 1.0); // avoid raising a negative base
 
+    // Phi is the angle between T and V (projected onto the tangent plane). It ranges in [0, PI/2]
+    // I remap it to [0,1] by multiplying it by 2/PI
+    float normalizedPhi = absTdotV == 0.0 ? 1.0 : 2.0 * atan(absBdotV, absTdotV) / PI; // GLSL atan(y,x) is undefined for x==0; I fix the image for that value
+    
     // look up size and bias coefficients from the BRDF LUT
-    vec2 envBRDF  = texture( brdfLUT, vec2(uLUT, vLUT) ).rg;
+    vec2 envBRDF  = texture( brdfLUT, vec2(normalizedPhi, sqrt(NdotV)) ).rg;
 
-    float NdotV = max(dot(V, N), 0.0); // avoid raising a negative base
     vec3 F = vec3(pow(1.0 - NdotV, 5.0));
     F *= (1.0 - F0);
     F += F0;
@@ -392,12 +401,14 @@ void main(void)
     // notice ks = F is already included in Specular() calculations
     vec3 color = (kd * Diffuse() + Specular()) * ao;
 
-/*
-    // HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2));
-*/
+    if (hdrGamma)
+    {    
+        // HDR tonemapping
+        color = color / (color + vec3(1.0));
+        // gamma correct
+        color = pow(color, vec3(1.0/2.2));
+    }
+
 
     colorFrag = vec4(color, 1.0);
 }

@@ -51,15 +51,15 @@
 
 ///////////////////////////////////////////////////////////
 // directional shininess(es) for Ashikhmin-Shirley model and sample count for Monte-Carlo integration
-GLfloat nU = 70.0f, nV = 20000.0f;
+GLfloat nU = 20000.0f, nV = 70.0f;
 GLuint sampleCount = 5u;
 
 // the paths for the various textures
 std::string texturesFolder = "../../textures/";
-std::string materialFolder = "metal_tiles/";
+std::string materialFolder = "hammered_metal/";
 std::string materialPath = texturesFolder + materialFolder;
 
-std::string cubeMapsFolder = "arches/";
+std::string cubeMapsFolder = "haiku/";
 std::string cubeMapsPath = texturesFolder + cubeMapsFolder;
 std::string environmentPath = cubeMapsPath + "environment/";
 std::string irradiancePath = cubeMapsPath + "irradiance/";
@@ -163,6 +163,9 @@ glm::vec2 repeat = glm::vec2(1.0f, 1.0f);
 
 // height scale for Parallax Occlusion Mapping
 GLfloat heightScale = 0.01;
+
+bool debug[3] = {true, true, true};
+bool hdrGamma = false;
 
 /*
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -368,6 +371,12 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(illumination_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
         glUniform4fv(glGetUniformLocation(illumination_shader.Program, "wCamera"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0)));
 
+        // DEBUG
+        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugDiffuse"), debug[0]);
+        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugPrefiltered"), debug[1]);
+        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugBRDF"), debug[2]);
+        glUniform1i(glGetUniformLocation(illumination_shader.Program, "hdrGamma"), hdrGamma);
+
         /////////////////// OBJECTS ////////////////////////////////////////////////
         // we search inside the Shader Program the name of the subroutine currently selected, and we get the numerical index
 
@@ -525,6 +534,11 @@ int main()
                 ImGui::SliderInt("Sample Count", &sampleCount, 1, 200, "sample count = %.4d", ImGuiSliderFlags_AlwaysClamp);
                 ImGui::Separator();
             }
+
+            ImGui::Checkbox("debugDiffuse", &debug[0]);
+            ImGui::Checkbox("debugPrefiltered", &debug[1]);
+            ImGui::Checkbox("debugBRDF", &debug[2]);
+            ImGui::Checkbox("hdrGamma", &hdrGamma);
 
             if (ImGui::TreeNode("Metrics"))
             {
@@ -703,6 +717,8 @@ GLint LoadTexture(const char* path, bool repeat)
     // we set the filtering for minification and magnification
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    //glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, glm::value_ptr(glm::vec3(1.0, 0.0, 0.0))); //REMOVE
 
     // we free the memory once we have created an OpenGL texture
     stbi_image_free(image);

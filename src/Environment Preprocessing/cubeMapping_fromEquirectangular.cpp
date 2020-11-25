@@ -46,7 +46,7 @@
 int main()
 {
     std::string texturesPath = "../../textures/";
-    std::string folderName = "arches/";
+    std::string folderName = "haiku/";
     std::string equirectangularName = "equirectangular.hdr";
 
     std::string folderPath = texturesPath + folderName;
@@ -181,7 +181,6 @@ int main()
         stbi_write_hdr((folderPath + "environment/" + directionNames[i] + ".hdr").c_str(), 512, 512, STBI_rgb, captureEnvironmentData);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
     // pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
     // --------------------------------------------------------------------------------
     unsigned int irradianceMap;
@@ -225,7 +224,7 @@ int main()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glfwTerminate();
-
+    
     delete[] captureEnvironmentData;
     delete[] captureIrradianceData;
 }

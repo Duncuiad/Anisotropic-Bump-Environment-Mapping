@@ -33,7 +33,7 @@ float nU = 1.0;
 float nV = 1.0;
 
 // the sample count for importance sampling and Monte-Carlo integration
-const unsigned int SAMPLE_COUNT = 512u;
+const unsigned int SAMPLE_COUNT = 1024u;
 
 int main() 
 {
@@ -104,28 +104,37 @@ int main()
     stbi_image_free(source);
 
     // generate the BRDF lookup texture
-    for (int j = 0; j < size; j++)
+    for (int j = 0; j < size; j++) // for each row
     {
 
         // progress counter
         std::cout << "\rWorking on row " << j + 1 << " of " << size << std::flush;
 
-        for (int i = 0; i < size; i++)
+        // this is the v coordinate of the texture
+        float sqrtNdotV = ((float) size - j - 1) / ((float) size); // from the bottom of the image
+
+        float NdotV = glm::clamp(glm::pow(sqrtNdotV, 2.0), 0.0, 1.0); // NdotV = cosTheta
+
+        float sinTheta = sqrt(1.0 - NdotV*NdotV);
+
+        // all of the above values don't change inside each row
+
+        for (int i = 0; i < size; i++) // for each column
         {
 
-            // these are the (u,v) coordinates for the output texture
-            float TdotV = ((float) i) / ((float) size); // from the left of the image
-            float BdotV = ((float) size - j - 1) / ((float) size); // from the bottom of the image
-            float TBnormSquared = BdotV*BdotV + TdotV*TdotV;
+            // this is the u coordinate of the texture
+            float normalizedPhi = ((float) i) / ((float) size); // from the left of the image
 
-            // TdotV and BdotV are cosines for the vector V on the orthonormal basis T, B, N, so their square sum cannot exceed 1;
-            // not only that, but it holds that <T,V>^2 + <B,V>^2 + <N,V>^2 = 1, where <,> is the dot product;
-            // this lets us reconstruct the z-coordinate of the vector V, but only for coordinates that satisfy
-            // TdotV * TdotV + BdotV * BdotV <= 1; (a)
-            // for the rest of the texels, I continuously extend the coordinate mapping setting NdotV = 0;
-            // this helps to avoid artifacts when the application linearly interpolates around texels near the boundary of inequality (a)
-        
-            float NdotV = TBnormSquared >= 1.0 ? 0.0 : glm::sqrt(1.0 - TBnormSquared);
+            float phi = normalizedPhi*PI/2.0;
+
+            // phi = normalizedPhi * PI/2 is the angle between 
+            float TdotV = glm::cos(phi) * sinTheta;
+            float BdotV = glm::sin(phi) * sinTheta;
+
+            // to sum up the calculations, in tangent space we have
+            // V = (TdotV, BdotV, NdotV) = (sinTheta * cosPhi, sinTheta * sinPhi, cosTheta)
+            // where phi is the angle between T and the projection of V onto the tangent plane
+            // and theta is the angle between N and V
 
             // reconstruct V in tangent space coordinates
             glm::vec3 V;
@@ -158,7 +167,7 @@ int main()
 
                 // cosines needed for the brdf calculation
                 float NdotL = glm::max(L.z, 0.0f);
-                float VdotH = glm::max(glm::dot(V, H), 0.001f); // avoid raising a negative base in the Fc calculation below
+                float VdotH = glm::clamp(glm::dot(V, H), 0.0f, 1.0f); // avoid raising a negative base in the Fc calculation below
 
                 if(NdotL > 0.0)
                 {
