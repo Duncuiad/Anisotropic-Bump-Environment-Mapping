@@ -56,10 +56,10 @@ GLuint sampleCount = 5u;
 
 // the paths for the various textures
 std::string texturesFolder = "../../textures/";
-std::string materialFolder = "hammered_metal/";
+std::string materialFolder = "metal_tiles/";
 std::string materialPath = texturesFolder + materialFolder;
 
-std::string cubeMapsFolder = "haiku/";
+std::string cubeMapsFolder = "arches/";
 std::string cubeMapsPath = texturesFolder + cubeMapsFolder;
 std::string environmentPath = cubeMapsPath + "environment/";
 std::string irradiancePath = cubeMapsPath + "irradiance/";

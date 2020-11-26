@@ -2143,6 +2143,24 @@ noprefix "false"
 \end_inset
 
 .
+\begin_inset listings
+lstparams "language={C++}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float x = glm::cos(PI*v); // x(u,v)
+\end_layout
+
+\begin_layout Plain Layout
+
+float y = glm::sin(PI*v); // y(u,v)
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Plain Layout
@@ -2200,6 +2218,29 @@ noprefix "false"
 \end_layout
 
 \begin_layout Plain Layout
+\begin_inset listings
+lstparams "language={C++}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float m = 0.1; // principal roughness, i.e.
+ alpha_x
+\end_layout
+
+\begin_layout Plain Layout
+
+float n = 1.0; // orthogonal roughness, i.e.
+ alpha_y
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
 In direct-light anisotropic renderings, the full TPR/roughness mapping can
  be tailor-made to achieve a wider range of effects, albeit sacrificing
  the beauty of environment mapping
@@ -2227,13 +2268,6 @@ A different use for the same tool would be to help artists authoring complex
  issue of anisotropy directions on the surface of the model.
 \end_layout
 
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\linebreak{}$
 \end_inset
 
 
@@ -2274,62 +2308,16 @@ noprefix "false"
 \end_layout
 
 \begin_layout Standard
-\begin_inset listings
-lstparams "language={C++},basicstyle={\ttfamily}"
-inline false
-status open
-
-\begin_layout Plain Layout
-
-float x = glm::cos(PI*v); // x(u,v)
-\end_layout
-
-\begin_layout Plain Layout
-
-float y = glm::sin(PI*v); // y(u,v)
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset listings
-lstparams "language={C++},basicstyle={\ttfamily}"
-inline false
-status open
-
-\begin_layout Plain Layout
-
-float m = 0.1; // principal roughness, i.e.
- alpha_x
-\end_layout
-
-\begin_layout Plain Layout
-
-float n = 1.0; // orthogonal roughness, i.e.
- alpha_y
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
 \begin_inset Float figure
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
-\align center
 
 \end_layout
 
 \begin_layout Plain Layout
-\align center
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
@@ -2349,7 +2337,6 @@ name "fig:Tangent-Space-Rotation"
 \end_layout
 
 \begin_layout Plain Layout
-\align center
 \begin_inset Float figure
 wide false
 sideways false
@@ -2384,6 +2371,9 @@ without TPR mapping
 \end_inset
 
 
+\end_layout
+
+\begin_layout Plain Layout
 \begin_inset Float figure
 wide false
 sideways false
@@ -2417,7 +2407,6 @@ with TPR mapping
 \end_layout
 
 \begin_layout Plain Layout
-\align center
 \begin_inset Float figure
 wide false
 sideways false
@@ -2449,6 +2438,9 @@ composed mapping
 \end_inset
 
 
+\end_layout
+
+\begin_layout Plain Layout
 \begin_inset Float figure
 wide false
 sideways false
@@ -2459,17 +2451,10 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Graphics
-	filename textures/hammered_metal/rotation.png
-	width 45text%
-
-\end_inset
-
-
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-the corresponding TPR map
+the TPR map
 \end_layout
 
 \end_inset

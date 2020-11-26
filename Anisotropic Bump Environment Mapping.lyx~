@@ -29,7 +29,17 @@
 \bibtex_command default
 \index_command default
 \paperfontsize default
-\use_hyperref false
+\spacing single
+\use_hyperref true
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks false
+\pdf_backref false
+\pdf_pdfusetitle true
 \papersize default
 \use_geometry false
 \use_package amsmath 1
@@ -44,6 +54,7 @@
 \use_package undertilde 1
 \cite_engine basic
 \cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -139,6 +150,13 @@ The Bidirectional Radiance Distribution Function (BRDF) is, in the phisical
 \end_layout
 
 \begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 The two realms of illumination models I mean to discuss, as per the title
  of this subsection, derive their differences precisely from the intention
  of describing real life materials.
@@ -175,6 +193,13 @@ noprefix "false"
 ), and not just for the relative position of the view- (or incident light-)
  vector to the surface normal vector - which is the case for most isotropic
  models.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -235,7 +260,7 @@ Heidrich-Seidel
 
 \begin_layout Standard
 This Phong-like model from 1998 means to describe anisotropic surfaces as
- (2D) bundles of onedimensional strands (curves in 3D space) each having
+ (2D) bundles of one-dimensional strands (curves in 3D space) each having
  a tangent vector in each of its points.
  Given a point on a surface, it uses this tangent 
 \begin_inset Formula $T$
@@ -663,6 +688,13 @@ small
 \end_layout
 
 \begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 UV-mapping is what provides fragment-level precision (albeit with fixed
  resolution) to all of the calculations we are tasked to perform when implementi
 ng illumination models.
@@ -717,7 +749,14 @@ normal
 \emph on
 outwards-pointing
 \emph default
- in the case of a 2-manifold closed mesh).
+ in the case of a 2-manifold closed mesh)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -898,22 +937,1582 @@ Normal Mapping
 \begin_layout Standard
 Having set the context in which we can use textures to store values of vectors
  varying on the surface to be rendered, it is now time to mention the most
- widely used and readily available kind of vector mapping: Normal Mapping.
+ widely used and readily available kind of vector mapping: Normal Maps.
 \end_layout
 
 \begin_layout Standard
 The idea behind this method is that we can mimic the appearance of bumps
- and indentations over the surface without tessellating and displacing faces
- and vertices of the mesh, by perturbing the normals at a fragment level
- instead.
+ and indentations over the surface without the need for tessellating and
+ displacing elements of the mesh, achieving the goal instead by perturbing
+ the surface normals at a fragment level.
+\end_layout
+
+\begin_layout Standard
+The image value of the normal vector is store directly at coordinates (u,v)
+ of the lookup texture, making the implementation of the mapping a straight
+ texture read performed in the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The value of the normal at each point is then used to perform lighting calculati
+ons againts view and light vectors (in this implementation, all of them
+ are first mapped to tangent space).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Normal Maps
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Normal-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/noNormMap.png
+	width 20page%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+no normal mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/withNormMap.png
+	width 20page%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+with normal mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/hammered_metal/normal.jpg
+	width 20page%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+the normal map texture
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Normal-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows (isotropic) environment mapping with and without normal mapping,
+ as well as the texture used to achieve the effect.
+ Notice the bluish tint of the texture: normal maps describe 
+\begin_inset Quotes eld
+\end_inset
+
+small
+\begin_inset Quotes erd
+\end_inset
+
+ perturbations about the mesh normal, so each texel stores a vector value
+ that in tangent space is 
+\begin_inset Quotes eld
+\end_inset
+
+close
+\begin_inset Quotes erd
+\end_inset
+
+ to the tangent space's 
+\begin_inset Formula $\mathbf{n}=(0,0,1)^{\top}$
+\end_inset
+
+ normal vector (corresponding to a fully blue RGB triplet
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Actually, 
+\begin_inset Formula $(x,y,z)$
+\end_inset
+
+ vectors are mapped to 
+\begin_inset Formula $(r,g,b)=\frac{1}{2}(x,y,z)+\frac{1}{2}$
+\end_inset
+
+, which means that the up vector in tangent space corresponds to a lighter
+ 
+\begin_inset Formula $(0.5,0.5,1)$
+\end_inset
+
+ blue on the texture
+\end_layout
+
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Subsection
 Quaternion Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Quaternion-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Normal maps are enough in all of the cases where information about the normal
+ vector alone is sufficient to perform lighting calculations.
+ But if we were to apply normal maps as is, when implementing, for example,
+ anisotropic shaders, the perturbed normals would reflect bumps over the
+ surface, while tangents and bitangents would still be interpolated from
+ the mesh's own vectors.
+\end_layout
+
+\begin_layout Standard
+In a technical sense, the tangent space basis vectors could not be guaranteed
+ to be orthonormal, and as such couldn't hope to describe an actual reference
+ frame.
+\end_layout
+
+\begin_layout Standard
+This issue, when left unattended, gives birth to weird lighting effects
+ and has to be addressed when bump mapping with anisotropic shaders: not
+ only should normals be perturbed, but the perturbation should involve the
+ whole tangent space in the same way.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+One way of solving the issue (on the programmer's part) would be to ask
+ artists authoring PBR materials to provide a tangent- and bitangent-map
+ textures for anisotropic materials, then sampling them just like normal
+ maps to obtain the perturbed versions of the corresponding vectors.
+\end_layout
+
+\begin_layout Standard
+Such method would however amount to both unnecessary work on the artist's
+ part and a threefold increase in memory occupation on the GPU.
+\end_layout
+
+\begin_layout Standard
+A different approach I think better suits the problem is to consider the
+ normal map authored by PBR artists not as the bump mapping itself, but
+ as where the normals end up after a tangent-space-wide change of reference
+ frame.
+ This amounts to finding, for each 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+ coordinate, that particular linear transformation
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+This transformation maps the 
+\begin_inset Formula $(\mathbf{t},\mathbf{b},\mathbf{n})$
+\end_inset
+
+ orthonormal basis to a perturbed orthonormal basis 
+\begin_inset Formula $(\mathbf{t'},\mathbf{b'},\mathbf{n'})$
+\end_inset
+
+, preserving orientation.
+ By definition, this transformation is a 
+\emph on
+rotation
+\end_layout
+
+\end_inset
+
+ which, following the shortest path, maps the 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ tangent space vector to the 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\mathbf{n'}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ value stored in the normal map texture.
+\end_layout
+
+\begin_layout Standard
+This is a rotation from 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ to 
+\begin_inset Formula $\mathbf{n'}$
+\end_inset
+
+, whose axis is perpendicular to both vectors, and as such surely lies in
+ the tangent plane
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Which is the subspace of vectors orthogonal to 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
+ Linear transformations are usually represented, in computer graphics, by
+ their representation matrix with respect to known vector bases.
+ Constructing and storing such a 3x3 matrix would however incur into issues
+ similar to those discussed above, namely memory occupation.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The hunt for a solution to this problem brings us to the title of this subsectio
+n: it is a well known fact that unit quaternions represent rotations of
+ the 3-dimensional space.
+ In particular, to each (unit) quaternion 
+\begin_inset Formula $\mathbf{q}=a+b\mathbf{i}+c\mathbf{j}+d\mathbf{k}$
+\end_inset
+
+ is associated a unique rotation 
+\begin_inset Formula $r_{\mathbf{q}}$
+\end_inset
+
+ (with the caveat that opposite quaternions represent the same rotation,
+ i.e.
+ 
+\begin_inset Formula $r_{\mathbf{q}}=r_{-\mathbf{q}}$
+\end_inset
+
+), which acts on a 3D vector 
+\begin_inset Formula $\mathbf{v}=x\mathbf{i}+y\mathbf{j}+z\mathbf{k}$
+\end_inset
+
+ in the following way:
+\begin_inset Formula 
+\begin{align*}
+r_{\mathbf{q}}(\mathbf{v}) & =\mathbf{q\mathbf{^{-1}v}q}\\
+ & =\mathbf{\bar{q}\mathbf{v}q}\\
+ & =(a-b\mathbf{i}-c\mathbf{j}-d\mathbf{k})(x\mathbf{i}+y\mathbf{j}+z\mathbf{k})(a+b\mathbf{i}+c\mathbf{j}+d\mathbf{k})
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where all of the products are quaternion products, which incidentally distribute
+ over the sum.
+\end_layout
+
+\begin_layout Standard
+Furthermore, the quaternion representing a rotation of axis 
+\begin_inset Formula $\mathbf{l}=r\mathbf{i}+s\mathbf{j}+t\mathbf{k}$
+\end_inset
+
+ (
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+ being a unit vector) and angle 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ can be calculated as:
+\begin_inset Formula 
+\[
+\mathbf{q_{l,\alpha}=\cos\left(\frac{\alpha}{\mathrm{2}}\right)}+\sin\left(\frac{\alpha}{\mathrm{2}}\right)(r\mathbf{i}+s\mathbf{j}+t\mathbf{k})=a+b\mathbf{i}+c\mathbf{j}+d\mathbf{k}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the setting discussed above, the fact that the tangent space rotation
+ has axis lying in the tangent plane
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+i.e.
+ 
+\begin_inset Formula $t=0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ translates directly to its representing quaternion having 
+\begin_inset Formula $d=t\sin\left(\frac{\alpha}{\mathrm{2}}\right)$
+\end_inset
+
+ component equal to 0.
+\end_layout
+
+\begin_layout Standard
+We then search for one of the two unit quaternions satisfying:
+\begin_inset Formula 
+\begin{align*}
+\mathbf{n'} & =\mathbf{\bar{q}}\mathbf{n}\mathbf{q}\\
+x\mathbf{i}+y\mathbf{j}+z\mathbf{k} & =(a-b\mathbf{i}-c\mathbf{j})(0\mathbf{i}+0\mathbf{j}+1\mathbf{k})(a+b\mathbf{i}+c\mathbf{j})\\
+x\mathbf{i}+y\mathbf{j}+z\mathbf{k} & =(a-b\mathbf{i}-c\mathbf{j})(a\mathbf{k}+b\mathbf{j}-c\mathbf{i})\\
+x\mathbf{i}+y\mathbf{j}+z\mathbf{k} & =-2ac\mathbf{i}+2ab\mathbf{j}+(a^{2}-b^{2}-c^{2})\mathbf{k}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Which amounts to solving, for parameters 
+\begin_inset Formula $a$
+\end_inset
+
+, 
+\begin_inset Formula $b$
+\end_inset
+
+, 
+\begin_inset Formula $c$
+\end_inset
+
+, the nonlinear system:
+\begin_inset Formula 
+\[
+\begin{cases}
+ac & =-\frac{x}{2}\\
+ab & =\frac{y}{2}\\
+a^{2}-b^{2}-c^{2} & =z\\
+a^{2}+b^{2}+c^{2} & =1
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This gives, choosing 
+\begin_inset Formula $a\geq0$
+\end_inset
+
+ (for 
+\begin_inset Formula $a\leq0$
+\end_inset
+
+ we obtain the opposite quaternion, representing the same rotation):
+\begin_inset Formula 
+\[
+\begin{cases}
+a & =\sqrt{\frac{z+1}{2}}\\
+b & =\sqrt{\frac{y^{2}}{2(z+1)}}\\
+c & =\sqrt{\frac{x^{2}}{2(z+1)}}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Notice that in the implementation, once the value of 
+\begin_inset Formula $a$
+\end_inset
+
+ has been computed, the other two parameters can be obtained as 
+\begin_inset Formula $b=\frac{y}{2a}$
+\end_inset
+
+ and 
+\begin_inset Formula $c=-\frac{x}{2a}$
+\end_inset
+
+, simplifying calculations.
+\end_layout
+
+\begin_layout Standard
+Having no need to store a 
+\begin_inset Formula $d$
+\end_inset
+
+ value, it is possible to store the vector 
+\begin_inset Formula $(a,b,c)$
+\end_inset
+
+ in a texture, just like a normal map and most importantly with exactly
+ the same impact on memory, but with information ready to compute the whole
+ perturbed tangent space.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+This quaternion texture can and therefore should be precomputed, which,
+ in the implementation of this project, is what the 
+\begin_inset Formula $\mathtt{setupRotationMapping.exe}$
+\end_inset
+
+ executable was designed for.
+\end_layout
+
+\begin_layout Plain Layout
+It takes a normal map as input, it performs the calculations described above,
+ and it returns a texture of the same width and height of the input image,
+ storing the quaternion map.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Subsequently, at the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ stage of rendering a model, the texture is read and its values are used
+ to compute the perturbed 
+\begin_inset Formula $\mathbf{t'}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{b'}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{n'}$
+\end_inset
+
+ vectors, by having 
+\begin_inset Formula $\mathbf{q}=a+b\mathbf{i}+c\mathbf{j}$
+\end_inset
+
+ act on the tangent space basis vectors:
+\begin_inset Formula 
+\begin{align*}
+\mathbf{t'} & =\mathbf{\bar{q}\mathbf{t}q} & =(a-b\mathbf{i}-c\mathbf{j})\mathbf{i}(a+b\mathbf{i}+c\mathbf{j}) & =(a^{2}+b^{2}-c^{2},2bc,2ac)\\
+\mathbf{b'} & =\mathbf{\bar{q}\mathbf{b}q} & =(a-b\mathbf{i}-c\mathbf{j})\mathbf{j}(a+b\mathbf{i}+c\mathbf{j}) & =(2bc,a^{2}-b^{2}+c^{2},2ab)\\
+\mathbf{n'} & =\mathbf{\bar{q}\mathbf{n}q} & =(a-b\mathbf{i}-c\mathbf{j})\mathbf{k}(a+b\mathbf{i}+c\mathbf{j}) & =(-2ac,2ab,a^{2}-b^{2}-c^{2})
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Quaternion mapping overall achieves the goal of uniformly perturbing the
+ tangent space, with minimal calculations to be performed in the fragment
+ shader, while having the same impact on memory as usual normal mapping
+ (the normal map itself is not needed anymore, as the perturbed normal can
+ be calculated from the quaternion map, just like the other vectors).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement !th
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Quaternion Maps
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Quaternion-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/onlyNormalQuat.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+only normal mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/onlyTangentQuat.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+only tangent and bitangent mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/withQuat.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+full quaternion mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename textures/hammered_metal/quaternion.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+the quaternion map obtained from the normal map in figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Normal-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:the-quaternion-map"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As shown in figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Quaternion-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, full tangent space perturbation is needed to properly model anisotropic
+ reflections, all the more so near parts of the surface where the perturbation
+ achieved by bump mapping is more pronounced (in this particular case, near
+ the edges of the bumps).
+\end_layout
+
+\begin_layout Standard
+The reddish tint of figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:the-quaternion-map"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ underlines how mapped quaternions are 
+\begin_inset Quotes eld
+\end_inset
+
+small
+\begin_inset Quotes erd
+\end_inset
+
+ perturbations of the identity quaternion 
+\begin_inset Formula $1+0\mathbf{i}+0\mathbf{j}+0\mathbf{k}$
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Which is mapped to the RGB triplet 
+\begin_inset Formula $\left(1,\frac{1}{2},\frac{1}{2}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Subsection
-Tangent Plane Rotation Mapping
+Tangent Plane Rotation (TPR) Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Tangent-Plane-Rotation"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Quaternion-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, a choice was made of the particular rotation mapping 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ to 
+\begin_inset Formula $\mathbf{n'}$
+\end_inset
+
+, selecting the 
+\begin_inset Quotes eld
+\end_inset
+
+shortest
+\begin_inset Quotes erd
+\end_inset
+
+ rotation, i.e.
+ the one with axis perpendicular to both 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{n'}$
+\end_inset
+
+, among all of the possible rotations achieving the same result.
+\end_layout
+
+\begin_layout Standard
+In fact, this class of rotations can be characterized as the collection
+ of all rotations of the kind 
+\begin_inset Formula $r=\bar{r}\circ r^{\top}$
+\end_inset
+
+, where 
+\begin_inset Formula $\bar{r}$
+\end_inset
+
+ is the rotation mentioned above, as selected in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Quaternion-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, and 
+\begin_inset Formula $r^{\top}$
+\end_inset
+
+ is 
+\emph on
+any
+\emph default
+ rotation of the tangent 
+\emph on
+plane
+\emph default
+, that is to say any one having 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ as rotation axis.
+\end_layout
+
+\begin_layout Standard
+This behaviour underlines the complexity of the space of 3D rotations, compared
+ to their 2D counterpart, and allows for effects only achievable by anisotropic
+ shaders, given their reliance on the state of the whole tangent space.
+ Tangent and bitangent vectors can in fact be rotated in the tangent plane
+ to describe non-trivial variations of the microsurface distribution orientation
+ across the surface.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This subsection focuses on how to describe an arbitrary tangent plane rotation
+ 
+\begin_inset Formula $r^{\top}$
+\end_inset
+
+, how to implement it in the shader and how to compose it with other transformat
+ions like tangent space perturbations discussed before.
+\end_layout
+
+\begin_layout Standard
+To rotate the whole tangent plane, both the 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ vectors should be rotated the same way.
+ Since they should always be perpendicular, a quick simplification is to
+ fix, for any arbitrary tangent vector 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+, its corresponding
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ is effectively obtained from 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ by rotating it 
+\begin_inset Formula $90\textdegree$
+\end_inset
+
+ around the normal 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ bitangent vector 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ as 
+\begin_inset Formula $\mathbf{b}=J\mathbf{t}$
+\end_inset
+
+, where:
+\begin_inset Formula 
+\[
+J=\left(\begin{array}{ccc}
+0 & -1 & 0\\
+1 & 0 & 0\\
+0 & 0 & 1
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This convention allows us to only have to rotate 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ in the tangent plane and retrieve 
+\series bold
+
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ 
+\series default
+immediately after.
+\end_layout
+
+\begin_layout Standard
+Two paths can be followed to rotate 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+: the first would be to store an angle 
+\begin_inset Formula $\vartheta$
+\end_inset
+
+ in a 1-channel texture, representing the angle of rotation about the 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ axis.
+ This however would require calculating goniometric functions and matrix
+ multiplication in the fragment shader.
+\end_layout
+
+\begin_layout Standard
+The second path is the one I implemented in this project: I store the two
+ components
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The two nontrivial components: a tangent vector always has its third component
+ equal to 0
+\end_layout
+
+\end_inset
+
+ of the rotated tangent vector (in tangent space coordinates), in a 2-channel
+ texture.
+ They are then passed to the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ as they are to compute the modified 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ vector.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+The generation of this texture, as implemented for this project, is performed
+ in the 
+\begin_inset Formula $\mathtt{generateTangentPlaneTexture.exe}$
+\end_inset
+
+ program.
+ It revolves around two lines of code computing the vector's 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+ components as functions of the texture's 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+ coordinates.
+\end_layout
+
+\begin_layout Plain Layout
+Here is an example of the functions generating the TPR mapping used in figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Tangent-Space-Rotation"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+lstparams "language={C++},basicstyle={\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float x = glm::cos(PI*v); // x(u,v)
+\end_layout
+
+\begin_layout Plain Layout
+
+float y = glm::sin(PI*v); // y(u,v)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+This program actually generates a 4-channel RGBA texture, since it supports,
+ on its third and fourth channels, the definition of a UV map for the directiona
+l roughnesses 
+\begin_inset Formula $\alpha_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\alpha_{y}$
+\end_inset
+
+ used by anisotropic shaders.
+ However, as explained in section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Environment-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, the preprocessing required for achieving smooth real-time bumped environment
+ mapping needs the roughness values to be fixed across the whole application.
+ These components are thus ignored by the main application, but their values
+ can be set across the texture by modifying these lines of code (their current
+ state reflects the RGBA TPR map in figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Tangent-Space-Rotation"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Plain Layout
+In direct-light anisotropic renderings, the full TPR/roughness mapping can
+ be tailor-made to achieve a wider range of effects, albeit sacrificing
+ the beauty of environment mapping
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+A different use for the same tool would be to help artists authoring complex
+ UV-mapped models with anisotropic reflecting surfaces in the UV-mapping
+ itself.
+ It is often the case, in fact, that UV maps must be split along seams in
+ the mesh, mapping parts of the mesh to different areas in the texture image,
+ cramming and rotating them to make use of the most possible space.
+ To maintain correct anisotropy, the orientation of these mapped regions
+ would be constrained to a fixed direction, introducing issues when cramming
+ them.
+ Through the use of a parallel TPR texture, instead, the artist is allowed
+ to rotate each mapped mesh component as needed, letting TPR manage the
+ issue of anisotropy directions on the surface of the model.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The results of this process are shown in figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Tangent-Space-Rotation"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, as well as the result of composing quaternion and TPR mapping on the same
+ model.
+ Composing the effects is actually really simple, since rotations (in this
+ case in three dimensions) are linear transformations.
+ This lets us apply bump mapping straight to the rotated 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ (
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ is unaffected by TPR mapping) and achieve their composite effect.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "language={C++},basicstyle={\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float m = 0.1; // principal roughness, i.e.
+ alpha_x
+\end_layout
+
+\begin_layout Plain Layout
+
+float n = 1.0; // orthogonal roughness, i.e.
+ alpha_y
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Tangent Space Rotation Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Tangent-Space-Rotation"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/noDiffMap.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+without TPR mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/withDiffMap.png
+	width 45text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+with TPR mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/withBoth.png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+composed mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/hammered_metal/rotation.png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+the corresponding TPR map
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
