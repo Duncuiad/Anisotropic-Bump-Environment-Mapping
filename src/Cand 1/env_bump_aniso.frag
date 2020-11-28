@@ -64,11 +64,6 @@ uniform sampler2D halfVector; //in tangent space coordinates
 // u parameter is NdotV, v parameter is TdotV
 uniform sampler2D brdfLUT;
 
-uniform bool debugDiffuse;
-uniform bool debugPrefiltered;
-uniform bool debugBRDF;
-uniform bool hdrGamma;
-
 ////////////////////////////////////////////////////////////////////
 
 // subroutine uniform for the choice of the specular lighting component method
@@ -172,41 +167,8 @@ vec3 Specular_Irradiance()
             // map the light direction to world coordinates, usign the TBN matrix interpolated during rasterization
             vec3 wL = wTBNt * L;
 
-            // look up of the environment map along the (world) light direction
+            // look-up of the environment map along the (world) light direction
             convolutedColor += texture(environmentMap, wL).rgb * NdotL; // NdotL is the weight of the Monte-Carlo integration
-
-            /*
-            IMPORTANT NOTE: to avoid excessive noise due to undersampling, it would be better to sample a miplevel of the environment map
-            Here is the point where it should be done.
-
-            Original code is as such:
-
-                ///
-                float D   = DistributionGGX(NdotH, roughness);
-                float pdf = (D * NdotH / (4.0 * HdotV)) + 0.0001; 
-
-                float resolution = 512.0; // resolution of source cubemap (per face)
-                float saTexel  = 4.0 * PI / (6.0 * resolution * resolution);
-                float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
-
-                float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
-                ///
-
-            REMEMBER TO ENABLE TRILINEAR FILTERING FOR THE CUBE MAP IN THE APPLICATION:
-
-                ///
-                glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); 
-                ///
-            
-            AND TO GENERATE MIPMAP !AFTER! CUBEMAP IS SET FROM EQUIRECTANGULAR
-
-            --> Code would be changed to:
-
-                convolutedColor += textureLod(environmentMap, wL, mipLevel).rgb + NdotL
-            */
-
-
             totalWeight += NdotL;
         }
     }
@@ -294,7 +256,7 @@ vec3 NormalMapping(vec2 final_UV)
 }
 
 subroutine(normal_map)
-vec3 RotationMap_N(vec2 final_UV)
+vec3 QuaternionMap_N(vec2 final_UV)
 {
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
@@ -311,14 +273,14 @@ vec3 Off_T(vec2 final_UV)
 }
 
 subroutine(tangent_map)
-vec3 Diff_T(vec2 final_UV)
+vec3 RotationMap_T(vec2 final_UV)
 {
     vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
     return vec3(V.x, V.y, 0.0);
 }
 
 subroutine(tangent_map)
-vec3 RotationMap_T(vec2 final_UV)
+vec3 QuaternionMap_T(vec2 final_UV)
 {
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
@@ -329,7 +291,7 @@ vec3 RotationMap_T(vec2 final_UV)
 }
 
 subroutine(tangent_map)
-vec3 DiffAndRotMap_T(vec2 final_UV)
+vec3 QuatAndRotMap_T(vec2 final_UV)
 {
     vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
@@ -347,14 +309,14 @@ vec3 Off_B(vec2 final_UV)
 }
 
 subroutine(bitangent_map)
-vec3 Diff_B(vec2 final_UV)
+vec3 RotationMap_B(vec2 final_UV)
 {
     vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
     return vec3(-V.y, V.x, 0.0);
 }
 
 subroutine(bitangent_map)
-vec3 RotationMap_B(vec2 final_UV)
+vec3 QuaternionMap_B(vec2 final_UV)
 {
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
     float a = q.x;
@@ -365,7 +327,7 @@ vec3 RotationMap_B(vec2 final_UV)
 }
 
 subroutine(bitangent_map)
-vec3 DiffAndRotMap_B(vec2 final_UV)
+vec3 QuatAndRotMap_B(vec2 final_UV)
 {
     vec2 V = 2.0 * texture(rotationMap, final_UV).xy - 1.0;
     vec3 q = 2.0 * texture(quaternionMap, final_UV).xyz - 1.0;
@@ -396,19 +358,9 @@ void main(void)
 
     // ks + kd = 1.0, and we have ks = F
     vec3 kd = 1.0 - F;
-//    kd *= 1.0 - metallic;
 
     // notice ks = F is already included in Specular() calculations
     vec3 color = (kd * Diffuse() + Specular()) * ao;
-
-    if (hdrGamma)
-    {    
-        // HDR tonemapping
-        color = color / (color + vec3(1.0));
-        // gamma correct
-        color = pow(color, vec3(1.0/2.2));
-    }
-
 
     colorFrag = vec4(color, 1.0);
 }

@@ -5,6 +5,32 @@
 \save_transient_properties true
 \origin unavailable
 \textclass article
+\begin_preamble
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.4,0}
+\definecolor{dkblue}{rgb}{0,0.2,0.5}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C++,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{dkblue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\end_preamble
 \use_default_options true
 \maintain_unincluded_children false
 \language english
@@ -94,6 +120,37 @@ Bumped Environment Mapping for Anisotropic Shaders
 Federico Marcolongo, 940085
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/withBoth.png
+	width 70text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Abstract
 Anisotropic shaders need information about the whole tangent space orientation
  to render illumination models, as opposed to their isotropic counterpart,
@@ -121,15 +178,350 @@ Introduction
 \end_layout
 
 \begin_layout Subsection
-Goal of the project
+About this document
+\end_layout
+
+\begin_layout Standard
+Implementing anisotropic illumination models with support for both environment
+ and bump mapping required me to span many different topics on top of the
+ OpenGL implementation itself.
+ As a consequence, to keep the description of the project I implemented
+ as concise as possible, I had to make the choice of glossing over most
+ topics for which an outside reference is available.
+ In those cases, a quick description is provided to explain how that particular
+ aspect intervenes in the project and then a reference is specified for
+ further reading.
+ This let me focus more on the explanation of topics I had to come up with
+ to make the project work.
+ Having no other reference for such topics, I wanted to make sure that the
+ explanation of mathematical models and implementation had all the space
+ it required.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To better understand the structure of this document, here is a quick overview
+ of its parts:
+\end_layout
+
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Anisotropic Models"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ focuses on anisotropic illumination in general and a few relevant models,
+ describing their main purpose and the distribution function they center
+ on.
+ Further information can be found in the original papers
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+They can be found in the bibliography
+\end_layout
+
+\end_inset
+
+, while more detail is given only where it matters for other parts of the
+ project.
+\end_layout
+
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Bump-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ describes bump- and displacement-mapping, going faster on normal- and parallax
+ occlusion-mapping, while leaving more space to quaternion- and tangent-space-ro
+tation-mapping, where a full explanation of the underlying mathematical
+ model and of the choices made to implement them is needed.
+ This section is fairly mathematical due to its relation to the geometry
+ of surfaces.
+\end_layout
+
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Environment-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ addresses the issue of implementing environment mapping when working with
+ anisotropic models.
+ It focuses most on the implementation choices I had to make to adapt the
+ isotropic method it is based on, for which it provides references to allow
+ the reader to have a more complete picture of the method.
+ This section covers topics spanning from numerical integration to rendering
+ optimizations and is therefore more technical than the previous.
+\end_layout
+
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Implementation-Details"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ focuses more on the actual implementation, providing information on the
+ programs making the project work and the required structure of its file
+ system.
+ It details how to build and use the programs generating the textures required
+ by the main rendering application, as well as how to build and use the
+ application itself.
+\end_layout
+
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Results-and-Performance"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ finally presents the end results with a few rendered models, showing off
+ some of the capabilities of the complete project, whereas pictures in the
+ previous sections were more aseptic, having to underline a specific technical
+ aspect each.
+ It also spends a few words on the overall performance of the rendering,
+ including some stress-testing.
 \end_layout
 
 \begin_layout Subsection
 Notation
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Notation"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Throughout this document I stick to the same notation, except where explicitly
+ specified, which is as follows:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+: bold fonts denote vectors
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $(\mathbf{vw})$
+\end_inset
+
+ denotes the dot product of vectors 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{w}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ are respectively the tangent, bitangent and normal (unit) vectors on a
+ point of the surface of a model
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ is the view direction.
+ It is a unit vector that always points from its base point on a surface
+ to the observers's position
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+ is the light direction.
+ It is a unit vector that always points from its base point on a surface
+ to the position of the light source
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+ is the 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+-
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+ half-vector (more properly the 
+\begin_inset Quotes eld
+\end_inset
+
+half-way vector
+\begin_inset Quotes erd
+\end_inset
+
+).
+ It is a unit vector depending on the view and light directions and it's
+ computed as 
+\begin_inset Formula $\mathbf{h}=\frac{\mathbf{v}+\mathbf{l}}{\left\Vert \mathbf{v}+\mathbf{l}\right\Vert }$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+Parts of this document referring to implementation details 
+\emph on
+outside
+\emph default
+ of section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Implementation-Details"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ are framed in a box just like this one.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+Code excerpts are shown like this, with partial 
+\begin_inset Quotes eld
+\end_inset
+
+syntax hilighting
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Folders', files' and programs' names are all written in 
+\begin_inset Formula $\mathtt{typewriter\,font}$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
 Quick Overview of Anisotropic Illumination Models
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Anisotropic Models"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -209,7 +601,7 @@ Below are presented a few models addressing the issue of anisotropic surfaces.
  accurate) of them, the Heidrich-Seidel 
 \begin_inset CommandInset citation
 LatexCommand cite
-key "key-3"
+key "key-4"
 literal "false"
 
 \end_inset
@@ -219,7 +611,7 @@ literal "false"
  while the Ward 
 \begin_inset CommandInset citation
 LatexCommand cite
-key "key-4"
+key "key-5"
 literal "false"
 
 \end_inset
@@ -227,7 +619,7 @@ literal "false"
  and Ashikhmin-Shirley 
 \begin_inset CommandInset citation
 LatexCommand cite
-key "key-2"
+key "key-3"
 literal "false"
 
 \end_inset
@@ -471,7 +863,7 @@ For the purposes of this project, it should also be noted that the Ward
 
 \begin_inset CommandInset citation
 LatexCommand cite
-key "key-2"
+key "key-3"
 literal "false"
 
 \end_inset
@@ -481,6 +873,13 @@ literal "false"
 
 \begin_layout Subsection
 Ashikhmin-Shirley
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Ashikhmin-Shirley"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -602,7 +1001,7 @@ name "Fresnel-reflectance-Schlick"
 Anticipating the discussion contained in subsection 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "subsec:Pre-processing"
+reference "subsec:BRDF-integration"
 plural "false"
 caps "false"
 noprefix "false"
@@ -967,7 +1366,7 @@ ons againts view and light vectors (in this implementation, all of them
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1495,7 +1894,7 @@ Having no need to store a
 \end_layout
 
 \begin_layout Standard
-\begin_inset Box Boxed
+\begin_inset Box Doublebox
 position "t"
 hor_pos "c"
 has_inner_box 1
@@ -2087,7 +2486,7 @@ The two nontrivial components: a tangent vector always has its third component
 \end_layout
 
 \begin_layout Standard
-\begin_inset Box Boxed
+\begin_inset Box Doublebox
 position "t"
 hor_pos "c"
 has_inner_box 1
@@ -2103,7 +2502,7 @@ separation "3pt"
 shadowsize "4pt"
 framecolor "black"
 backgroundcolor "none"
-status open
+status collapsed
 
 \begin_layout Plain Layout
 The generation of this texture, as implemented for this project, is performed
@@ -2142,7 +2541,28 @@ noprefix "false"
 
 \end_inset
 
-.
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset listings
+lstparams "language={C++},basicstyle={\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float x = glm::cos(PI*v); // x(u,v)
+\end_layout
+
+\begin_layout Plain Layout
+
+float y = glm::sin(PI*v); // y(u,v)
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Plain Layout
@@ -2197,6 +2617,29 @@ noprefix "false"
 \end_inset
 
 ):
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset listings
+lstparams "language={C++},basicstyle={\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+float m = 0.1; // principal roughness, i.e.
+ alpha_x
+\end_layout
+
+\begin_layout Plain Layout
+
+float n = 1.0; // orthogonal roughness, i.e.
+ alpha_y
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Plain Layout
@@ -2271,50 +2714,6 @@ noprefix "false"
 \end_inset
 
  is unaffected by TPR mapping) and achieve their composite effect.
-\end_layout
-
-\begin_layout Standard
-\begin_inset listings
-lstparams "language={C++},basicstyle={\ttfamily}"
-inline false
-status open
-
-\begin_layout Plain Layout
-
-float x = glm::cos(PI*v); // x(u,v)
-\end_layout
-
-\begin_layout Plain Layout
-
-float y = glm::sin(PI*v); // y(u,v)
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset listings
-lstparams "language={C++},basicstyle={\ttfamily}"
-inline false
-status open
-
-\begin_layout Plain Layout
-
-float m = 0.1; // principal roughness, i.e.
- alpha_x
-\end_layout
-
-\begin_layout Plain Layout
-
-float n = 1.0; // orthogonal roughness, i.e.
- alpha_y
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Standard
@@ -2492,7 +2891,227 @@ the corresponding TPR map
 \end_layout
 
 \begin_layout Subsection
+Parallax Occlusion Mapping (POM)
+\end_layout
+
+\begin_layout Standard
+POM is a displacement technique that modifies the (u,v) coordinates used
+ for texture sampling based on the view direction 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ and the height map of the material.
+ It is a method for simulating visibility occlusion due to parallax effects
+ without actually displacing elements of the mesh.
+\end_layout
+
+\begin_layout Standard
+Its effects are scalable by a 
+\begin_inset Formula $\mathtt{uniform\,float\,heightScale}$
+\end_inset
+
+ factor ranging between 0 and 1 passed to the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ by the application.
+ It works best on isometric UV-mappings, due to the fact that the resulting
+ displacement step is calculated in texture space and it is uniform in all
+ directions within this space (meaning it is not uniform in all directions
+ on the surface in the case of a non-isometric UV-mapping)
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+There is a geometric way to compensate this effect, but it would involve
+ computing the riemannian metric of the immersed surface (the first fundamental
+ form), which could easily be done for any UV-mapping.
+ This is however outside the scope of this project and it wasn't implemented.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+I implemented this method based on
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-3"
+literal "false"
+
+\end_inset
+
+'s implementation with minimal modifications, since its inclusion is marginal
+ to the goal of the project.
+ As a consequence, I refer to 
+\begin_inset CommandInset href
+LatexCommand href
+name "LearnOpenGL - Parallax Mapping"
+target "https://learnopengl.com/Advanced-Lighting/Parallax-Mapping"
+literal "false"
+
+\end_inset
+
+ for details on its implementation.
+\end_layout
+
+\begin_layout Standard
+Unlike the previous methods, which needed a thorough explanation of the
+ underlying mathematical models and choices in implementation, lacking an
+ external reference, I have opted for a quicker overview of this particular
+ method.
+\end_layout
+
+\begin_layout Standard
+Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Parallax-Occlusion-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows POM effects for increasing values of 
+\begin_inset Formula $\mathtt{heightScale}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
 Parallax Occlusion Mapping
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Parallax-Occlusion-Mapping"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/noPOM.png
+	width 20page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+heightScale = 0
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/lowPOM.png
+	width 20page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+heightScale = 0.1
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/highPOM.png
+	width 20page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+heightScale = 0.3
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -2510,8 +3129,605 @@ name "sec:Environment-Mapping"
 Overview
 \end_layout
 
+\begin_layout Standard
+Environment mapping is a lighting technique whose purpose is to account
+ for incoming radiance from the whole environment surrounding the model
+ to be rendered, instead of just summing the contributions of a discrete
+ collection of point and directional lights.
+\end_layout
+
+\begin_layout Standard
+It is best suited for a PBR setting and it achieves a physical realism hardly
+ obtainable by discrete light sources.
+ Since the integration of the lighting equation (for arbitrary environment
+ radiance) is a heavy task for real-time rendering, this method has to introduce
+ a set of approximations that let us perform as much numerical integration
+ as possible before the application doing the rendering even runs.
+ Its results are stored in appropriate texture formats read by the application
+ at the time of rendering.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The main ingredient in this kind of lighting is the data describing incoming
+ radiance.
+ The most widely available arrangement for this data is the 3-channel 
+\begin_inset Formula $\mathtt{hdr}$
+\end_inset
+
+ image format
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Hence the use of the term Image Based Lighting (IBL) for this kind of environmen
+t mapping
+\end_layout
+
+\end_inset
+
+, whose RGB values are stored as floats to span a High Dynamic Range.
+ Artists usually author these environment maps in spherical coordinates,
+ resulting in a rectangular picture (called an 
+\emph on
+equirectangular
+\emph default
+ format).
+ To ensure faster computation
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Avoiding having to evaluate goniometric functions during rendering
+\end_layout
+
+\end_inset
+
+, it is usually preferred to remap this picture to six 
+\begin_inset Formula $\mathtt{hdr}$
+\end_inset
+
+ files representing a cubemap, more easily accessible by the rendering process
+ (in the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Subsubsection
+The Epic Games method for isotropic specular EM
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-1"
+literal "false"
+
+\end_inset
+
+ does a great job of describing how to implement environment mapping for
+ the Cook-Torrance GGX (isotropic) illumination model.
+ Its 
+\begin_inset CommandInset href
+LatexCommand href
+name "[LearnOpenGL: Specular IBL]"
+target "https://learnopengl.com/PBR/IBL/Specular-IBL"
+literal "false"
+
+\end_inset
+
+ chapter is based on a paper by Epic
+\begin_inset space ~
+\end_inset
+
+Games
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+literal "false"
+
+\end_inset
+
+ describing the implementation of GGX in Unreal Engine 4
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The Epic Games paper is itself a real-time adaption of a Disney paper, but
+ I think it's best to limit excessive reference meandering
+\end_layout
+
+\end_inset
+
+.
+ This paper is also the source of the approximation choices having to be
+ made to achieve fully pre-processed numerical integrations, whose results
+ are used by IBL
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Albeit these allow for full preprocessing of only isotropic models
+\end_layout
+
+\end_inset
+
+.
+ The two main simplifications operated by this paper are: 
+\end_layout
+
+\begin_layout Enumerate
+the split sum approximation, which splits the specular lighting equation
+ integral into the product of the integrals of the radiance and that of
+ the BRDF
+\end_layout
+
+\begin_layout Enumerate
+the Fresnel-Schlick approximation of the Fresnel reflectance, which allows
+ for splitting the BRDF integral into two components
+\begin_inset CommandInset label
+LatexCommand label
+name "enu:the-Fresnel-Schlick-approximatio"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The approximation mentioned in point
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "enu:the-Fresnel-Schlick-approximatio"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ allows for the integration of terms that do not depend on the value of
+ 
+\begin_inset Formula $F_{0}$
+\end_inset
+
+, the Fresnel reflectance at normal incidence, whose value can be set and
+ passed to the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ by the application.
+ The fragment shader then uses this value to compute the actual result of
+ the full integral.
+\end_layout
+
+\begin_layout Standard
+The actual numerical integration is eventually performed in a Monte-Carlo
+ setting with importance sampling of the half-vectors 
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+.
+ The radiance integral results are stored in a 
+\begin_inset Quotes eld
+\end_inset
+
+prefiltered irradiance
+\begin_inset Quotes erd
+\end_inset
+
+ cubemap texture, while the two BRDF integral components are stored in a
+ 2-channel texture whose (u,v) coordinates are the value of the 
+\begin_inset Formula $(\mathbf{nv})$
+\end_inset
+
+ product and the value of the (isotropic) roughness 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+Adapting the Epic Games method to anisotropic models
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Adapting-the-Epic"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+I will refer to 
+\begin_inset CommandInset href
+LatexCommand href
+name "[LearnOpenGL: Specular IBL]"
+target "https://learnopengl.com/PBR/IBL/Specular-IBL"
+literal "false"
+
+\end_inset
+
+ for the implementation of a preprocessed-GGX-environment-mapped lighting
+ model and its explanation, whereas here I want to detail the design choices
+ involved in adapting the method mentioned above to anisotropic illumination
+ models, while keeping full support for bump mapping and the unpredictability
+ of the tangent space's orientation it entails.
+\end_layout
+
+\begin_layout Enumerate
+
+\emph on
+Roughness values 
+\begin_inset Formula $\alpha_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\alpha_{y}$
+\end_inset
+
+ are fixed.
+
+\emph default
+ This is due to the fact that the BRDF lookup texture (LUT), for reasons
+ described in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:BRDF-integration"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, as well as the half-vector LUT used for importance sampling and detailed
+ in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Importance-Sampling"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, would both need to be 4D textures to accomodate roughness dependance.
+ This is an absurd requirement in terms of storage space occupancy that
+ cannot be satisfied in any way at high enough texture resolution.
+\end_layout
+
+\begin_layout Enumerate
+
+\emph on
+Importance sampling is also preprocessed.
+
+\emph default
+ This means that, for fixed roughness values, a LUT mapping the unit square
+ to the model's half-vectors
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In cartesian 
+\emph on
+tangent space
+\emph default
+ coordinates, according to their distribution, which is determined by the
+ specific illumination model and the roughness values
+\end_layout
+
+\end_inset
+
+ is generated by a dedicated program.
+ This texture is then sampled both during the real-time radiance integration
+ detailed below and within the program performing the BRDF integration,
+ which returns the BRDF LUT.
+ This preprocessing step helps to avoid having to evaluate processing-power-heav
+y functions during rendering, while in the same way it helps speeding up
+ the generation of the BRDF LUT.
+\end_layout
+
+\begin_layout Enumerate
+
+\emph on
+Radiance integration must be performed real-time.
+
+\emph default
+ Due to the dependence of anisotropic illumination models on the orientation
+ of the tangent space and not just the normal vector, it is impossible to
+ generate a 
+\begin_inset Quotes eld
+\end_inset
+
+prefiltered irradiance cubemap
+\begin_inset Quotes erd
+\end_inset
+
+ like Epic Games does.
+ This is true in general for any non-convex mesh
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Non-convex meshes are very likely to have a pair of points whose light vectors
+ point to the same cubemap texel, but whose tangents have different directions,
+ resulting in different anisotropic lighting
+\end_layout
+
+\end_inset
+
+ and even more true as soon as bump-mapping comes into play.
+ This step is therefore the most performance-affecting of the environment
+ mapping steps, and its impact can only be controlled by dynamically adjusting
+ the number of samples used to integrate the environment radiance numerically.
+ Speaking of which, it should be noted that lower levels of roughness always
+ require fewer samples to achieve comparable results
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+This is due to the fact that lower values of roughness mean that the distributio
+n of the half-vectors will tend to concentrate sample within a smaller region
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+
+\emph on
+The BRDF LUT is indexed by 
+\begin_inset Formula $(\mathbf{nv})$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi$
+\end_inset
+
+
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The azimuthal angle of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, i.e.
+ the angle between 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ and the projection of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ onto the tangent plane, following the notation in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Notation"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fn:The-azimuthal-angle"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+, whereas Epic Games's one was indexed by 
+\emph on
+
+\begin_inset Formula $(\mathbf{nv})$
+\end_inset
+
+ 
+\emph default
+and
+\emph on
+ 
+\begin_inset Formula $\alpha$
+\end_inset
+
+
+\emph default
+, the isotropic roughness.
+ Anisotropic illumination models need information regarding the rotational
+ configuration of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ with respect to 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+, as well as its inclination, unlike isotropic ones which only need the
+ latter.
+ These two parameters allow us to completely reconstruct the view vector
+ in tangent space coordinates, where the half-vector sampling and the BRDF
+ integration are performed.
+\end_layout
+
 \begin_layout Subsection
 Diffuse Component
+\end_layout
+
+\begin_layout Standard
+The diffuse lighting component is not affected by anisotropy, which means
+ that the radiance integration can be performed following 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-1"
+literal "false"
+
+\end_inset
+
+'s method, detailed at 
+\begin_inset CommandInset href
+LatexCommand href
+name "[LearnOpenGL: Diffuse Irradiance]"
+target "https://learnopengl.com/PBR/IBL/Diffuse-irradiance"
+literal "false"
+
+\end_inset
+
+, step by step.
+\end_layout
+
+\begin_layout Standard
+I use a lambertian diffuse model to keep things simple, since diffusion
+ is an important part of phisically based rendering, but it isn't the focus
+ of this project
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+For ease of use, remapping of equirectangular 
+\begin_inset Formula $\mathtt{hdr}$
+\end_inset
+
+ files (to generate the environment cubemap) and generation of the diffuse
+ irradiance cubemap are both done by the same program: 
+\begin_inset Formula $\mathtt{cubeMapping\_fromEquirectangular.exe}$
+\end_inset
+
+.
+ It takes the name of the environment map directory (within the textures
+ folder) as input, which can be set at this line of code in the 
+\begin_inset Formula $\mathtt{cpp}$
+\end_inset
+
+ file:
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+std::string folderName = "arches/";
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+The EM directory should contain an 
+\begin_inset Formula $\mathtt{hdr}$
+\end_inset
+
+ file named 
+\begin_inset Formula $\mathtt{equirectangular.hdr}$
+\end_inset
+
+ and, at least on computers running on Windows, folders 
+\begin_inset Formula $\mathtt{environment}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{irradiance}$
+\end_inset
+
+.
+ Running the program renders a cube with shaders 
+\begin_inset Formula $\mathtt{cubemap.vert}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{equi\_to\_cube.frag}$
+\end_inset
+
+ and saves the cube's faces in the 
+\begin_inset Formula $\mathtt{environment}$
+\end_inset
+
+ folder.
+ It then convolutes the environment map to obtain its diffuse irradiance
+ map while rendering the same cube with shaders 
+\begin_inset Formula $\mathtt{cubemap.vert}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{convolution.frag}$
+\end_inset
+
+ and saves its faces in the 
+\begin_inset Formula $\mathtt{irradiance}$
+\end_inset
+
+ folder.
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -2529,59 +3745,3187 @@ name "subsec:Why-Ashikhmin-Shirley?"
 
 \end_layout
 
-\begin_layout Subsubsection
-Importance Sampling
+\begin_layout Standard
+Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Anisotropic Models"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ presents three different approaches to anisotropic illumination.
+ Only one of those models was implemented in this project
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Previous versions were point-light-based instead of environment-mapped,
+ showing the results of rendering with all three models, as well as with
+ various isotropic ones
+\end_layout
+
+\end_inset
+
+: Ashikhmin-Shirley.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The reason behind this choice is mainly due to the fact that environment
+ mapping looks the best in a physically based setting, which immediately
+ eliminates the Heidrich-Seidel model from the picture.
+\end_layout
+
+\begin_layout Standard
+As for Ward's model, although it finds its roots in physical reality, it
+ purposefully lacks both Fresnel reflectance and geometry visibility terms,
+ which have now become staples of PBR.
+ More importantly, while it does provide a method for importance sampling,
+ it doesn't explicitly provide the distribution of the sampled half-vectors,
+ making Monte-Carlo integration converge more slowly, since it can't be
+ weighted against the probability density.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As explained in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Ashikhmin-Shirley"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, the Ashikhmin-Shirley provides the perfect tools and setting for implementing
+ efficient environment mapping.
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+Important note:
+\emph default
+ I have until now referred to 
+\begin_inset Formula $\alpha_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\alpha_{y}$
+\end_inset
+
+ as (directional) roughness values, ranging between 0 and 1.
+ Ashikhmin-Shirley's analogous parameters are instead terms 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+, each with values greater or equal to 1, which can be considered respectively
+ as 
+\begin_inset Formula $\frac{1}{\alpha_{x}^{2}}$
+\end_inset
+
+ and 
+\begin_inset Formula $\frac{1}{\alpha_{y}^{2}}$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Subsubsection
-Pre-processing
+Importance Sampling
 \begin_inset CommandInset label
 LatexCommand label
-name "subsec:Pre-processing"
+name "subsec:Importance-Sampling"
 
 \end_inset
 
 
 \end_layout
 
+\begin_layout Standard
+As explained in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Adapting-the-Epic"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, preprocessing the sampling of half-vectors plays an important part in
+ reducing the load of work left to real-time rendering.
+ Luckily, Ashikhmin-Shirley provides
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Having fixed 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ a way to map two uniformly distributed 
+\begin_inset Formula $(\xi_{1},\xi_{2})$
+\end_inset
+
+ sample values on the interval 
+\begin_inset Formula $[0,1]$
+\end_inset
+
+ to the spherical coordinates of half-vectors 
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+ whose distribution (in the tangent space) is 
+\begin_inset Formula $p_{h}$
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+See
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Ashikhmin-Shirley-h-distribution"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
+ That is, it provides functions 
+\begin_inset Formula $(\phi,\theta):\left[0,1\right]\times\left[0,1\right]\rightarrow\left[0,2\pi\right)\times\left[0,\frac{\pi}{2}\right]$
+\end_inset
+
+, for fixed 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+, mapping the unit square to the upper hemisphere (in spherical coordinates)
+ of the unit sphere:
+\begin_inset Formula 
+\begin{align*}
+\phi_{red}(t) & =\arctan\left(\sqrt{\frac{n_{u}+1}{n_{v}+1}}\tan\left(\frac{\pi}{2}t\right)\right)\\
+\phi(\xi_{1},\xi_{2}) & =\begin{cases}
+\phi_{red}(4\xi_{1}) & \xi_{1}\in\left[0,\frac{1}{4}\right)\\
+\pi-\phi_{red}(2-4\xi_{1}) & \xi_{1}\in\left[\frac{1}{4},\frac{1}{2}\right)\\
+\pi+\phi_{red}(4\xi_{1}-2) & \xi_{1}\in\left[\frac{2}{4},\frac{3}{4}\right)\\
+2\pi-\phi_{red}(4-4\xi_{1}) & \xi_{1}\in\left[\frac{3}{4},1\right]
+\end{cases}\\
+\theta(\xi_{1},\xi_{2}) & =\arccos\left(\left(1-\xi_{2}\right)^{\frac{1}{n_{u}\cos^{2}\phi+n_{v}\sin^{2}\phi+1}}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Using 
+\begin_inset Formula $(\xi_{1},\xi_{2})$
+\end_inset
+
+ as (u,v) coordinates, it is then possible to map the half-vector 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $(\phi,\theta)$
+\end_inset
+
+ to cartesian coordinates (
+\begin_inset Formula $\mathbf{h}=(x,y,z)$
+\end_inset
+
+) and store its components in the first three channels of an RGBA texture,
+ whose alpha channel can also be used to store the value of
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ 
+\begin_inset Formula $p_{h}(\mathbf{h})$
+\end_inset
+
+ (after renormalization), to avoid having to compute it again at run-time.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathtt{halfVectorSampling.exe}$
+\end_inset
+
+ does all of this.
+ When launched, it waits for command-line input specifying the desired 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+ values, after which it performs the calculations described above and saves
+ a file called 
+\begin_inset Formula $\mathtt{halfVectorSampling\,[\mathit{n_{u}}\mathtt{,\mathit{n_{v}}}\mathtt{].png}}$
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+It substitutes the actual 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+ values passed as input
+\end_layout
+
+\end_inset
+
+ representing said texture in the 
+\begin_inset Formula $\mathtt{textures}$
+\end_inset
+
+ folder.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Wherever 
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+-sampling is needed, it is now as easy as generating a low discrepancy sequence
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Low discrepancy sequences tend to have faster convergence of Monte-Carlo
+ integration, compared to uniformly distributed sequence, which is why they
+ were preferred in this project.
+ The half-vector lookup texture however works with any kind of sample sequence
+ on the unit square.
+\end_layout
+
+\end_inset
+
+ of 
+\begin_inset Formula $N$
+\end_inset
+
+ points on the unit square and using their coordinates to sample the half-vector
+ texture
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+The low discrepancy sequences used for integration across this project are
+ all Hammersley sequences.
+ More information can be found here: 
+\begin_inset CommandInset href
+LatexCommand href
+name "[Holger Dammertz: Hammersley Sequence]"
+target "http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html"
+literal "false"
+
+\end_inset
+
+.
+ One thing to specify is that the first sample in a Hammersley sequence
+ is always the point (0,0), which in Ashikhmin-Shirley importance sampling
+ is always mapped to the vector (0,0,1) in tangent space: the 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ vector.
+ This means in particular that setting the number of samples to 1 in the
+ 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ of the rendering application always replicates the effects of a perfectly
+ reflecting surface (isotropic refection with null roughness).
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Half-vector sampling visualization
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Half-vector-sampling-visualizati"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Downloads/desmos-graph (2).png
+	width 15page%
+	BoundingBox 300bp 300bp 1700bp 1700bp
+	clip
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=1$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Downloads/desmos-graph.png
+	width 15page%
+	BoundingBox 300bp 300bp 1700bp 1700bp
+	clip
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=1$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Downloads/desmos-graph (1).png
+	width 15page%
+	BoundingBox 300bp 300bp 1700bp 1700bp
+	clip
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Downloads/desmos-graph (3).png
+	width 15page%
+	BoundingBox 300bp 300bp 1700bp 1700bp
+	clip
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Corresponding lookup textures
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Corresponding-lookup-textures"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/halfVectorSampling [1,1].png
+	width 15page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=1$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/halfVectorSampling [1,20].png
+	width 15page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=1$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/halfVectorSampling [20,1].png
+	width 15page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/halfVectorSampling [20,20].png
+	width 15page%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Half-vector-sampling-visualizati"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows how a semi-regular sequence on the unit square (not Hammersley) is
+ mapped in tangent space.
+ The view is from the top, with 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ pointing out of the screen, 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ to the right and 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ upwards.
+\end_layout
+
+\begin_layout Standard
+Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Corresponding-lookup-textures"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows instead the corresponding half-vector LUT for the same values of
+ 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+BRDF integration
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:BRDF-integration"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Recall from subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Ashikhmin-Shirley"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ that we had derived the integration-ready form of the Ashikhmin-Shirley
+ bidirectional reflectance distribution function (with the Fresnel-Schlick
+ approximation) as follows:
+\begin_inset Formula 
+\[
+f_{s}(\mathbf{v},\mathbf{l})=p_{l}(\mathbf{l})\left(F_{0}\frac{1-(1-(\mathbf{vh}))^{5}}{\max((\mathbf{nv}),(\mathbf{nl}))}+\frac{(1-(\mathbf{vh}))^{5}}{\max((\mathbf{nv}),(\mathbf{nl}))}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $p_{l}(\mathbf{l})$
+\end_inset
+
+ is the probability density of the light vector 
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+, determined by view vector 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ and half-vector 
+\begin_inset Formula $\mathbf{h}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Recall also that the specular component of the lighting equation, for an
+ arbitrary BRDF 
+\begin_inset Formula $f_{s}$
+\end_inset
+
+, is:
+\begin_inset Formula 
+\[
+L_{o}(\mathbf{v})=\int_{\mathbf{l}}f_{s}(\mathbf{v},\mathbf{l})L_{i}(\mathbf{l})(\mathbf{nl})d\omega_{\mathbf{l}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $L_{o}$
+\end_inset
+
+ and 
+\begin_inset Formula $L_{i}$
+\end_inset
+
+ are respectively the observed and incident radiance, and the integral covers
+ the upper hemisphere of the unit sphere in tangent space (where 
+\begin_inset Formula $(\mathbf{nl})>0$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+The split sum approximation mentioned at the beginning of section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Environment-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ consists in evaluating this integral as the product of two simpler ones:
+\begin_inset Formula 
+\[
+L_{o}(\mathbf{v})=\int_{\mathbf{l}}f_{s}(\mathbf{v},\mathbf{l})(\mathbf{nl})d\omega_{\mathbf{l}}\int_{\mathbf{l}}L_{i}(\mathbf{l})d\omega_{\mathbf{l}}=F(\mathbf{v})L(\mathbf{v})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The first of these two integrals is the one this subsection focuses on,
+ while the second will be the main topic of the next subsection.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Substituting the current form of the Ashikhmin-Shirley BRDF and setting
+ 
+\begin_inset Formula $\chi(\mathbf{v},\mathbf{h})=(1-(\mathbf{vh}))^{5}$
+\end_inset
+
+we obtain:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula 
+\[
+F(\mathbf{v})=F_{0}s(\mathbf{v})+b(\mathbf{v})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+where
+\begin_inset Formula 
+\begin{align*}
+s(\mathbf{v}) & =\int_{\mathbf{l}}p_{l}(\mathbf{l})\left(1-\chi(\mathbf{v},\mathbf{h})\right)\frac{(\mathbf{nl})}{\max((\mathbf{nv}),(\mathbf{nl}))}d\omega_{\mathbf{l}}\\
+b(\mathbf{v}) & =\int_{\mathbf{l}}p_{l}(\mathbf{l})\chi(\mathbf{v},\mathbf{h})\frac{(\mathbf{nl})}{\max((\mathbf{nv}),(\mathbf{nl}))}d\omega_{\mathbf{l}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Which, performing Monte-Carlo integration with importance sampling and sample
+ half-vectors 
+\begin_inset Formula $\left\{ \mathbf{h_{\mathit{i}}}\right\} _{i=1}^{N}$
+\end_inset
+
+, becomes:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula 
+\begin{align*}
+s(\mathbf{v}) & \approx\sum_{i=1}^{N}\frac{(\mathbf{nl_{\mathit{i}}})\left(1-\chi(\mathbf{v},\mathbf{h_{\mathit{i}}})\right)}{\max((\mathbf{nv}),(\mathbf{nl_{\mathit{i}}}))}\\
+b(\mathbf{v}) & \approx\sum_{i=1}^{N}\frac{(\mathbf{nl_{\mathit{i}}})\chi(\mathbf{v},\mathbf{h_{\mathit{i}}})}{\max((\mathbf{nv}),(\mathbf{nl_{\mathit{i}}}))}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+having set 
+\begin_inset Formula $\mathbf{l_{\mathit{i}}}=2(\mathbf{vh_{\mathit{i}}})\mathbf{h_{\mathit{i}}}-\mathbf{v}$
+\end_inset
+
+ for 
+\begin_inset Formula $i=1,...,N$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The functions 
+\begin_inset Formula $s$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ are called, respectively, 
+\begin_inset Quotes eld
+\end_inset
+
+size
+\begin_inset Quotes erd
+\end_inset
+
+ and 
+\begin_inset Quotes eld
+\end_inset
+
+bias
+\begin_inset Quotes erd
+\end_inset
+
+, deriving their name from the role they play in calculating the BRDF integral
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The analogy here is with the line equation 
+\begin_inset Formula $f(x)=sx+b$
+\end_inset
+
+, having 
+\begin_inset Formula $F_{0}$
+\end_inset
+
+ play the role of the variable
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Their values only depend on the components of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ in tangent space, which allows them to be stored in a lookup texture, as
+ soon as a convenient mapping of the view vectors 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ to the unit square is chosen.
+\end_layout
+
+\begin_layout Standard
+The values of 
+\begin_inset Formula $(\mathbf{nv})$
+\end_inset
+
+ and the azimuthal angle 
+\begin_inset Formula $\phi$
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+See 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fn:The-azimuthal-angle"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ provide all the necessary information to fully determine 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ in tangent space coordinates.
+\end_layout
+
+\begin_layout Standard
+A convenient aspect of the Ashikhmin-Shirley BRDF is that it has rectangular
+ symmetry.
+ That is to say, its value doesn't change if 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+ or 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+ are flipped.
+ This makes it possible to have 
+\begin_inset Formula $\phi$
+\end_inset
+
+ range between 
+\begin_inset Formula $0$
+\end_inset
+
+ and 
+\begin_inset Formula $\frac{\pi}{2}$
+\end_inset
+
+ (instead of 
+\begin_inset Formula $2\pi$
+\end_inset
+
+) and still retain all necessary information.
+\end_layout
+
+\begin_layout Standard
+Determining the value of this 
+\begin_inset Formula $\phi$
+\end_inset
+
+, corresponding to a certain 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, is done this way:
+\begin_inset Formula 
+\[
+\phi(\mathbf{v})=\arctan\left|\frac{(\mathbf{bv})}{(\mathbf{tv})}\right|
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Mapping 
+\begin_inset Formula $(\mathbf{nv})$
+\end_inset
+
+ straight as the 
+\begin_inset Formula $v$
+\end_inset
+
+ coordinate of the texture, though, tends to mean having worse resolution
+ in areas of the texture where the variations of 
+\begin_inset Formula $s$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ are most pronounced.
+ To compensate for this effect, I have chosen to set 
+\begin_inset Formula $\sqrt{(\mathbf{nv})}$
+\end_inset
+
+ as the 
+\begin_inset Formula $v$
+\end_inset
+
+ coordinate of the texture.
+\end_layout
+
+\begin_layout Standard
+The full mapping becomes:
+\begin_inset Formula 
+\begin{align*}
+u(\mathbf{v}) & =\frac{2}{\pi}\arctan\left|\frac{(\mathbf{bv})}{(\mathbf{tv})}\right|\\
+v(\mathbf{v}) & =\sqrt{\max\left((\mathbf{nv}),0\right)}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where the 
+\begin_inset Formula $\max$
+\end_inset
+
+ is taken to ensure 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ is in the upper hemisphere, which may not always be verified due to precision
+ issues.
+\end_layout
+
+\begin_layout Standard
+The inverse of this mapping
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Notice that 
+\begin_inset Formula $(\mathbf{nv})=\cos\theta,$
+\end_inset
+
+where 
+\begin_inset Formula $\theta$
+\end_inset
+
+ is the 
+\emph on
+polar angle
+\emph default
+ of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, i.e.
+ the angle between 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+ This means 
+\begin_inset Formula $\sin\theta=\sqrt{1-(\mathbf{nv})^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ (used in the program generating the texture to reconstruct the view vector
+ corresponding to coordinates 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+) is:
+\begin_inset Formula 
+\begin{align*}
+(\mathbf{tv}) & =\cos\left(\frac{\pi}{2}u\right)\sqrt{1-v^{4}}\\
+(\mathbf{bv}) & =\sin\left(\frac{\pi}{2}u\right)\sqrt{1-v^{4}}\\
+(\mathbf{nv}) & =v^{2}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+The program 
+\begin_inset Formula $\mathtt{brdfIntegration.exe}$
+\end_inset
+
+, when launched, waits for command-line input specifying the desired 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+ shininess values to generate the LUT from.
+ It then looks for the half-vector LUT with corresponding shininess values
+ in the 
+\begin_inset Formula $\mathtt{textures}$
+\end_inset
+
+ folder.
+ If it doesn't find it, the program exits and the user should first launch
+ 
+\begin_inset Formula $\mathtt{halfVectorSampling.exe}$
+\end_inset
+
+ inserting these values.
+ Otherwise, the program generates a Hammersley sequence to sample half-vectors
+ using the half-vector LUT.
+ It then uses them to perform Monte-Carlo integration of the BRDF as detailed
+ above, obtaining the values of 
+\begin_inset Formula $s$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ for each 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+ coordinate.
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+It eventually saves an RGB texture called 
+\begin_inset Formula $\mathtt{brdfIntegration\,[\mathit{n_{u}}\mathtt{,\mathit{n_{v}}}\mathtt{].png}}$
+\end_inset
+
+ in the 
+\begin_inset Formula $\mathtt{textures}$
+\end_inset
+
+ folder, storing 
+\begin_inset Formula $s$
+\end_inset
+
+ in the red channel, 
+\begin_inset Formula $b$
+\end_inset
+
+ in the green channel and 
+\begin_inset Formula $0$
+\end_inset
+
+ in the blue one.
+ The reason for using 3 channels instead of just the necessary 2 is just
+ that 2-channel-texture images are saved as grey-alpha images, making it
+ harder to figure out by sight how the values vary on the picture.
+ 
+\begin_inset Formula $\mathtt{png}$
+\end_inset
+
+ compression however ensures that setting the whole blue channel to 
+\begin_inset Formula $0$
+\end_inset
+
+ doesn't occupy unnecessary space.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Integrated BRDF lookup textures
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Integrated-BRDF-lookup"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/brdfIntegration [70,70].png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=70$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=70$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/brdfIntegration [70,20000].png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=70$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20000$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/brdfIntegration [20000,70].png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20000$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=70$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename textures/brdfIntegration [20000,20000].png
+	width 45text%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{u}=20000$
+\end_inset
+
+, 
+\begin_inset Formula $n_{v}=20000$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Integrated-BRDF-lookup"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ shows the resulting BRDF LUT for various shininess values.
+ Notice how lower values (corresponding to rougher surfaces) mean darker
+ textures, and thus less intense reflections.
+ This is due to more sample 
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+ vectors going below the horizon .
+ This is the main source of energy loss in the Ashikhmin-Shirley model.
+\end_layout
+
 \begin_layout Subsubsection
 Real-Time Monte-Carlo integration of environment luminance
 \end_layout
 
+\begin_layout Standard
+This is the last component to be addressed for implementing specular environment
+ mapping.
+ It centers around of the radiance integral obtained from the split sum
+ at the beginning of the last subsection:
+\begin_inset Formula 
+\[
+L(\mathbf{v})=\int_{\mathbf{l}}L_{i}(\mathbf{l})d\omega_{\mathbf{l}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $L_{i}(\mathbf{l})$
+\end_inset
+
+, the incident radiance, is the data contained in the environment cubemap.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As explained at the beginning of section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Environment-Mapping"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, this integration cannot be preprocessed when dealing with anisotropic
+ illumination models.
+\end_layout
+
+\begin_layout Standard
+The integration is then performed in the same way as explained in the last
+ subsection, regarding the BRDF integral, but is now done in the 
+\begin_inset Formula $\mathtt{fragment\,shader}$
+\end_inset
+
+ (
+\begin_inset Formula $\mathtt{env\_bump\_aniso.frag}$
+\end_inset
+
+) with the help of the preprocessed half-vector sampling.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The fragment shader generates a Hammersley sequence, samples the half-vectors
+ (whose coordinates are as of now in un-bumped tangent space), bumps the
+ half vectors using the bumped 
+\begin_inset Formula $\mathbf{t}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{b}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ and determines the corresponding 
+\begin_inset Formula $\mathbf{l}$
+\end_inset
+
+ vectors.
+\end_layout
+
+\begin_layout Standard
+These light vectors are still in tangent space, which is why they are first
+ sent to world (model) space using the TBN matrix (mapping tangent space
+ to world space) 
+\begin_inset Formula $\mathtt{in\,mat3\,wTBNt}$
+\end_inset
+
+, which is provided by the 
+\begin_inset Formula $\mathtt{vertex\,shader}$
+\end_inset
+
+ (
+\begin_inset Formula $\mathtt{env\_bump\_aniso.vert}$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+Their world coordinates are eventually used to sample the environment map,
+ obtaining the incident light value for the corresponding direction.
+\end_layout
+
+\begin_layout Standard
+These values are summed and their normalized sum plays the role of the 
+\begin_inset Quotes eld
+\end_inset
+
+prefiltered specular irradiance
+\begin_inset Quotes erd
+\end_inset
+
+ described in the Epic Games paper 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+All of the ingredients are now ready to obtain the final result.
+\end_layout
+
 \begin_layout Section
 Implementation Details
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Implementation-Details"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
 Languages and Libraries
 \end_layout
 
+\begin_layout Standard
+This project is written in C++, both the main application and the preprocessing
+ applications.
+ Vertex and fragment shaders are all in GLSL (OpenGL Shading Language).
+\end_layout
+
+\begin_layout Standard
+It includes the following libraries:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<glfw/glfw3.h>}$
+\end_inset
+
+ which manages the application window and context
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<glad/glad.h>}$
+\end_inset
+
+ which loads the OpenGL functionalities
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<utils/shader\_v1.h>}$
+\end_inset
+
+ which manages shader program compiling and linking
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<utils/model\_v2.h>}$
+\end_inset
+
+ which manages mesh import in OpenGL from 
+\begin_inset Formula $\mathtt{obj}$
+\end_inset
+
+ files
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<utils/camera.h>}$
+\end_inset
+
+ which manages camera movement
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<stb\_image/stb\_image.h>}$
+\end_inset
+
+ which manages reading image files
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<glm/glm.hpp>}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathtt{<glm/gtc/matrix\_transform.hpp>}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathtt{<glm/gtc/matrix\_inverse.hpp>}$
+\end_inset
+
+ for vector calculations
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<glm/gtc/type\_ptr.hpp>}$
+\end_inset
+
+ to pass glm vectors to shaders as uniforms
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mathtt{<imgui/imgui.h>}$
+\end_inset
+
+ to handle the GUI within the running application
+\end_layout
+
+\begin_layout Standard
+Preprocessing programs also include 
+\begin_inset Formula $\mathtt{<stb\_image/stb\_image\_write.h>}$
+\end_inset
+
+ to save texture files as images.
+\end_layout
+
 \begin_layout Subsection
 File System organization for Asset import
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:File-System-organization"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Preprocessing programs and the main application require assets to be stored
+ in the right directories and with the correct filenames to work properly.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+project directory/
+\end_layout
+
+\begin_layout Plain Layout
+
+	include/
+\end_layout
+
+\begin_layout Plain Layout
+
+	libs/
+\end_layout
+
+\begin_layout Plain Layout
+
+	models/
+\end_layout
+
+\begin_layout Plain Layout
+
+	src/
+\end_layout
+
+\begin_layout Plain Layout
+
+	textures/
+\end_layout
+
+\begin_layout Plain Layout
+
+	Workspace_Organization.code-workspace
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Models in 
+\begin_inset Formula $\mathtt{obj}$
+\end_inset
+
+ format should all be in the 
+\begin_inset Formula $\mathtt{models}$
+\end_inset
+
+ folder.
+ The 
+\begin_inset Formula $\mathtt{src}$
+\end_inset
+
+ folder contains the source code and eventually the executables of the main
+ application and of the preprocessing programs.
+\end_layout
+
+\begin_layout Standard
+The 
+\begin_inset Formula $\mathtt{textures}$
+\end_inset
+
+ folder should be organized like this:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+textures/
+\end_layout
+
+\begin_layout Plain Layout
+
+	material_1/
+\end_layout
+
+\begin_layout Plain Layout
+
+	...
+\end_layout
+
+\begin_layout Plain Layout
+
+	material_n/
+\end_layout
+
+\begin_layout Plain Layout
+
+	environment_map_1/
+\end_layout
+
+\begin_layout Plain Layout
+
+	...
+\end_layout
+
+\begin_layout Plain Layout
+
+	environment_map_m/
+\end_layout
+
+\begin_layout Plain Layout
+
+	//the following are generated here by the corresponding programs
+\end_layout
+
+\begin_layout Plain Layout
+
+	halfVectorSampling [n_u_1,n_v_1].png
+\end_layout
+
+\begin_layout Plain Layout
+
+	...
+\end_layout
+
+\begin_layout Plain Layout
+
+	halfVectorSampling [n_u_i,n_v_i].png
+\end_layout
+
+\begin_layout Plain Layout
+
+	brdfIntegration [n_u_1,n_v_1].png
+\end_layout
+
+\begin_layout Plain Layout
+
+	...
+\end_layout
+
+\begin_layout Plain Layout
+
+	brdfIntegration [n_u_i,n_v_i].png
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\mathtt{material}$
+\end_inset
+
+ folders like this, providing all of the files shown below (the image formats
+ may vary):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+material/
+\end_layout
+
+\begin_layout Plain Layout
+
+	albedo.jpg
+\end_layout
+
+\begin_layout Plain Layout
+
+	ao.png
+\end_layout
+
+\begin_layout Plain Layout
+
+	depth.png
+\end_layout
+
+\begin_layout Plain Layout
+
+	metallic.png
+\end_layout
+
+\begin_layout Plain Layout
+
+	normal.jpg
+\end_layout
+
+\begin_layout Plain Layout
+
+	quaternion.png //as generated by setupRotationMapping.exe
+\end_layout
+
+\begin_layout Plain Layout
+
+	rotation.png //as generated bt generateTangentPlaneRotation.exe
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+And finally 
+\begin_inset Formula $\mathtt{environment\_map}$
+\end_inset
+
+ folders like this:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+environment_map/
+\end_layout
+
+\begin_layout Plain Layout
+
+	environment/
+\end_layout
+
+\begin_layout Plain Layout
+
+		//this folder is empty before running cubeMap_fromEquirectangular.exe
+\end_layout
+
+\begin_layout Plain Layout
+
+		back.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		down.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		front.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		left.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		right.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		up.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+	irradiance/
+\end_layout
+
+\begin_layout Plain Layout
+
+		//this folder is empty before running cubeMap_fromEquirectangular.exe
+\end_layout
+
+\begin_layout Plain Layout
+
+		back.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		down.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		front.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		left.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		right.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+		up.hdr
+\end_layout
+
+\begin_layout Plain Layout
+
+	equirectangular.hdr
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
 Compiling and using the pre-processing applications
 \end_layout
 
+\begin_layout Standard
+Within the 
+\begin_inset Formula $\mathtt{src}$
+\end_inset
+
+ folder in the main directory there are three folders related to preprocessing:
+ 
+\begin_inset Formula $\mathtt{Quaternion\,Mapping}$
+\end_inset
+
+, 
+\begin_inset Formula $\mathtt{Tangent\,Plane\,Rotation\,Mapping}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{Environment\,Preprocessing}$
+\end_inset
+
+.
+ Each of these folders contains a file 
+\begin_inset Formula $\mathtt{MakefileWin.bat}$
+\end_inset
+
+ with all the instructions for compiling the 
+\begin_inset Formula $\mathtt{cpp}$
+\end_inset
+
+ files in that folder.
+ The Build command should be launched from Visual Studio Code after having
+ imported the main directory as a workspace, to ensure visibility of the
+ 
+\begin_inset Formula $\mathtt{include}$
+\end_inset
+
+ directory.
+ Include flags are all specified in the Visual Studio settings in each folder.
+ The executables are built in the same folder as their source code and they
+ work from that position in the file system.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Within the 
+\begin_inset Formula $\mathtt{Environment\,Preprocessing}$
+\end_inset
+
+ folder, 
+\begin_inset Formula $\mathtt{brdfIntegration.exe}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{halfVectorSampling.exe}$
+\end_inset
+
+ work as they are.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\mathtt{cubeMapping\_fromEquirectangular.exe}$
+\end_inset
+
+ works instead on the environment map directory specified within the source
+ code:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+std::string folderName = "arches/";
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To change environment map, this string should be modified before compiling.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The same applies to 
+\begin_inset Formula $\mathtt{setupRotationMapping.exe}$
+\end_inset
+
+ inside the 
+\begin_inset Formula $\mathtt{Quaternion\,Mapping}$
+\end_inset
+
+ folder.
+ In this case, the target file (the normal map image) can be modified at
+ the line:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+unsigned char *img = stbi_load("../../textures/metal_tiles/normal.jpg", &width,
+ &height, &channels, STBI_rgb);
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Having ensured a correct file system organization and correct target paths,
+ the programs should work as intended.
+\end_layout
+
+\begin_layout Subsection
+Compiling and running the rendering
+\end_layout
+
+\begin_layout Standard
+The source code for the main program of this project can be found in 
+\begin_inset Formula $\mathtt{/src/Main\,Application/aniso.cpp}$
+\end_inset
+
+.
+ Building the source code via Visual Studio Code (the instructions are contained
+ in the 
+\begin_inset Formula $\mathtt{MakefileWin.bat}$
+\end_inset
+
+ file) generates the executable 
+\begin_inset Formula $\mathtt{Aniso.exe}$
+\end_inset
+
+.
+ When launched, it compiles and links the shaders 
+\begin_inset Formula $\mathtt{env\_bump\_aniso.vert}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{env\_bump\_aniso.frag}$
+\end_inset
+
+, used for rendering environment-and-bump mapped models, and the shaders
+ 
+\begin_inset Formula $\mathtt{skybox.vert}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathtt{skybox.frag}$
+\end_inset
+
+, used for rendering the background.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The fixed application parameters are set at the top of the source code and
+ should be modified as desired before compiling 
+\begin_inset Formula $\mathtt{aniso.cpp}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+They are the directional shininess components of Ashikhmin-Shirley, 
+\begin_inset Formula $n_{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{v}$
+\end_inset
+
+, the relative path to the material directory and the relative path to the
+ environment map directory.
+\end_layout
+
+\begin_layout Standard
+They can be respectively set at the following lines of code:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+GLfloat nU = 20000.0f, nV = 70.0f;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+std::string materialFolder = "hammered_metal/";
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+std::string cubeMapsFolder = "arches/";
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If the shininess values do not correspond to values already used for generating
+ the preprocessed half-vector and BRDF integration lookup textures, the
+ program can't find the relevant files to import the textures and it exits.
+\end_layout
+
+\begin_layout Standard
+Similarly, if the names of the material or environment map directories are
+ not properly inserted, or if the folders are not organized as detailed
+ in subsection
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:File-System-organization"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, the textures can't be imported and the program exits.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Once the program starts, the scene is rendered and a GUI box is overlayed
+ in the top-left corner.
+ It contains instructions describing how to move within the scene.
+\end_layout
+
+\begin_layout Standard
+Pressing the E key stops mouse and keyboard input and changes the GUI to
+ two windows, of which the first allows for dynamically swapping subroutines
+ affecting the rendering, such as enabling or disabling normal mapping,
+ quaternion mapping etc.
+\end_layout
+
+\begin_layout Standard
+The second window contains sliders to dynamically alter the value of the
+ (RGB) Fresnel reflectance at normal incidence 
+\begin_inset Formula $F_{0}$
+\end_inset
+
+, the height-scale for displacement mapping and the number of samples used
+ in environment mapping with the Ashikhmin-Shirley model.
+\end_layout
+
+\begin_layout Standard
+Pressing E again returns the application to the previous state, letting
+ the user move freely within the scene once again.
+\end_layout
+
 \begin_layout Section
 Results and Performance
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Results-and-Performance"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
 Rendered Models
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+PBR bunnies
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_dielectric_bunny.png
+	height 35theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+dielectric bunny
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_metallic_bunny.png
+	height 35theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+metallic bunny
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+PBR spheres
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_ceramic_sphere.png
+	height 30theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+dielectric sphere
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_tiled_sphere.png
+	height 30theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+metallic sphere
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Playing with Tangent Plane Rotation mapping
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_spiral_TPR.png
+	height 30theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+spiral tangents
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/Federico/Pictures/res_madness_TPR.png
+	height 30theight%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+wild tangents
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection
 Performance and Quality analysis
 \end_layout
 
-\begin_layout Subsection
-Possible optimization improvements
+\begin_layout Standard
+The final rendering works as intended, having anisotropic illumination models
+ work with bump mapping, tangent plane rotation and environment mapping.
+ It achieves a good level of realism, as shown in the pictures above and
+ runs pretty smoothly in a real-time application.
 \end_layout
 
-\begin_layout Subsubsection
-Capping the number of samples with minimal quality loss
+\begin_layout Standard
+The main factor affecting performance is definitely the residual part of
+ numerical integration having to be performed in the fragment shader.
+ This implies that the rendering can run pretty smoothly on models contributing
+ to a limited fraction of the total fragments (i.e.
+ little screen space), even with a high number of samples (in the order
+ of the hundreds).
+ Conversely, due to how the code is implemented (the number of samples is
+ passed as a uniform to the fragment shader), for models occupying more
+ screen space the number of samples can be dynamically adjusted to avoid
+ an excessive load on the GPU.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+On a computer running on a NVidia Geforce 770 GTX with 2GB of RAM on a fullscree
+n 1080p display, the frame rate remains capped at 60 FPS while rendering
+ (with 200 samples) a model in the middle of the screen covering roughly
+ an eighth of the total screen space.
+ In the extreme case of an object covering the whole screen, the frame rate
+ is roughly inversely proportional to the number of samples, going from
+ 
+\begin_inset Formula $\sim60$
+\end_inset
+
+ FPS at 60 sample-count to 
+\begin_inset Formula $\sim20$
+\end_inset
+
+ FPS at 200 sample-count.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\linebreak{}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In most cases however the screen occupancy of an object to which one would
+ want to apply anisotropic shading is much more limited.
+ At the same time, in most use-cases the number of samples can be capped
+ well below 100 and still achieve perfectly acceptable results.
+ This is all the more true for shinier surfaces: sampled vectors tend to
+ be closer together and a smaller number of them is needed to obtain similar
+ results to a much higher sample count.
 \end_layout
 
 \begin_layout Bibliography
@@ -2593,14 +6937,26 @@ literal "false"
 
 \end_inset
 
-learnopengl.com
+learnopengl.com by Joey de Vries
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "Karis13"
+key "key-2"
+literal "false"
+
+\end_inset
+
+Brian Karis, Real Shading in Unreal Engine 4, Epic Games, 2013
 \end_layout
 
 \begin_layout Bibliography
 \begin_inset CommandInset bibitem
 LatexCommand bibitem
 label "AsSh00"
-key "key-2"
+key "key-3"
 literal "false"
 
 \end_inset
@@ -2614,7 +6970,7 @@ Michael Ashikhmin and Peter Shirley.
 \begin_inset CommandInset bibitem
 LatexCommand bibitem
 label "HeSe98"
-key "key-3"
+key "key-4"
 literal "false"
 
 \end_inset
@@ -2628,7 +6984,7 @@ Wolfgang Heidrich and Hans-Peter Seidel.
 \begin_inset CommandInset bibitem
 LatexCommand bibitem
 label "Ward92"
-key "key-4"
+key "key-5"
 literal "false"
 
 \end_inset

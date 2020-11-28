@@ -48,8 +48,8 @@ int main()
             float v = ((float) size - j - 1) / ((float) size);
 
             // THESE ARE THE VALUES FOR THE TEXTURE
-            float x = glm::cos(6*PI*v); // x(u,v)
-            float y = glm::sin(6*PI*v); // y(u,v)
+            float x = 1.0/glm::sqrt(2.0); // x(u,v)
+            float y = 1.0/glm::sqrt(2.0); // y(u,v)
             float m = 0.1; // principal roughness
             float n = 1.0; // orthogonal roughness
             // ------------------------------------

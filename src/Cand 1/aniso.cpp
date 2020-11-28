@@ -51,12 +51,12 @@
 
 ///////////////////////////////////////////////////////////
 // directional shininess(es) for Ashikhmin-Shirley model and sample count for Monte-Carlo integration
-GLfloat nU = 20000.0f, nV = 70.0f;
+GLfloat nU = 20000.0f, nV = 5.0f;
 GLuint sampleCount = 5u;
 
 // the paths for the various textures
 std::string texturesFolder = "../../textures/";
-std::string materialFolder = "metal_tiles/";
+std::string materialFolder = "hammered_metal/";
 std::string materialPath = texturesFolder + materialFolder;
 
 std::string cubeMapsFolder = "arches/";
@@ -65,12 +65,7 @@ std::string environmentPath = cubeMapsPath + "environment/";
 std::string irradiancePath = cubeMapsPath + "irradiance/";
 
 ///////////////////////////////////////////////////////////
-
-// dimensions of application's window
-GLuint screenWidth = 800, screenHeight = 600;
-
-// dimensions of Dear ImGui window
-GLuint guiWidth = 800, guiHeight = 600;
+// USER INPUT
 
 // callback functions for keyboard and mouse events
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -78,9 +73,21 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // if one of the WASD keys is pressed, we call the corresponding method of the Camera class
 void apply_camera_movements();
 
-// 
+// we initialize an array of booleans for each keybord key
+bool keys[1024];
+
+// we need to store the previous mouse position to calculate the offset with the current frame
+GLfloat lastX, lastY;
+
+// when rendering the first frame, we do not have a "previous state" for the mouse, so we need to manage this situation
+bool firstMouse = true;
+// control the state of the application
+GLboolean optionsOverlayActive = GL_FALSE;
+
+///////////////////////////////////////////////////////////
+// SUBROUTINE MANAGEMENT
+
 GLint countActiveSU;
-// GLint current_sub_uniform = 0;
 // a vector counting the number of compatible subroutines for each subroutine uniform
 vector<int> num_compatible_subroutines;
 // the vector storing the current subroutine for each uniform
@@ -96,6 +103,9 @@ std::map<std::string, int> sub_uniform_location;
 // a dictionary that matches active subroutine names to their indices
 std::map<std::string, GLuint> subroutine_index; 
 
+///////////////////////////////////////////////////////////
+// SHADER AND TEXTURES SETUP
+
 // the name of the subroutines are searched in the shaders, and placed in the shaders vector (to allow shaders swapping)
 void SetupShader(int shader_program);
 
@@ -105,6 +115,9 @@ void PrintCurrentShader(int subroutine);
 // load image from disk and create an OpenGL texture
 GLint LoadTexture(const char* path, bool repeat);
 GLint LoadCubeMap(const char* path, const char* format);
+
+///////////////////////////////////////////////////////////
+// GUI MANAGEMENT
 
 // CUSTOM OVERLOAD
 // ImGui::RadioButton is commented FIXME in source imgui_widget.cpp
@@ -120,16 +133,8 @@ namespace ImGui {
 bool currentCompSubIs(int subULocation, GLuint subIndex);
 bool currentCompSubIs(std::string subUName, std::string subName);
 
-// we initialize an array of booleans for each keybord key
-bool keys[1024];
-
-// we need to store the previous mouse position to calculate the offset with the current frame
-GLfloat lastX, lastY;
-
-// when rendering the first frame, we do not have a "previous state" for the mouse, so we need to manage this situation
-bool firstMouse = true;
-// control the state of the application
-GLboolean optionsOverlayActive = GL_FALSE;
+///////////////////////////////////////////////////////////
+// APPLICATION SETTINGS
 
 // parameters for time calculation (for metrics and animations)
 GLfloat setupTime = 0.0f;
@@ -163,15 +168,6 @@ glm::vec2 repeat = glm::vec2(1.0f, 1.0f);
 
 // height scale for Parallax Occlusion Mapping
 GLfloat heightScale = 0.01;
-
-bool debug[3] = {true, true, true};
-bool hdrGamma = false;
-
-/*
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-TODO:
-1) Implement textures manager (class Material)
-*/
 
 /////////////////// MAIN function ///////////////////////
 int main()
@@ -371,12 +367,6 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(illumination_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
         glUniform4fv(glGetUniformLocation(illumination_shader.Program, "wCamera"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0)));
 
-        // DEBUG
-        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugDiffuse"), debug[0]);
-        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugPrefiltered"), debug[1]);
-        glUniform1i(glGetUniformLocation(illumination_shader.Program, "debugBRDF"), debug[2]);
-        glUniform1i(glGetUniformLocation(illumination_shader.Program, "hdrGamma"), hdrGamma);
-
         /////////////////// OBJECTS ////////////////////////////////////////////////
         // we search inside the Shader Program the name of the subroutine currently selected, and we get the numerical index
 
@@ -535,11 +525,6 @@ int main()
                 ImGui::Separator();
             }
 
-            ImGui::Checkbox("debugDiffuse", &debug[0]);
-            ImGui::Checkbox("debugPrefiltered", &debug[1]);
-            ImGui::Checkbox("debugBRDF", &debug[2]);
-            ImGui::Checkbox("hdrGamma", &hdrGamma);
-
             if (ImGui::TreeNode("Metrics"))
             {
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -622,12 +607,6 @@ void SetupShader(int program)
     compatible_subroutines = vector<int*>(countActiveSU);
     current_subroutines = vector<GLuint>(countActiveSU);
     subroutines_names = vector<std::string>(activeSub);
-
-    /*
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    TODO: SUBSTITUTE ACCESS [loc] WITH at(loc)
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    */
 
     // print info for every Subroutine uniform
     for (int i = 0; i < countActiveSU; i++) {
