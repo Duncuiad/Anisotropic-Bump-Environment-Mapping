@@ -161,7 +161,7 @@ Anisotropic shaders need information about the whole tangent space orientation
  shaders couldn't describe.
  Keeping in mind the requirements a real-time rendering process needs to
  run smoothly, I try to make the best use of the aforementioned possibilities
- while maintaining accetpable performance.
+ while maintaining acceptable performance.
 \end_layout
 
 \begin_layout Standard
@@ -329,8 +329,8 @@ noprefix "false"
 
  finally presents the end results with a few rendered models, showing off
  some of the capabilities of the complete project, whereas pictures in the
- previous sections were more aseptic, having to underline a specific technical
- aspect each.
+ previous sections were more aseptic, each of them having to underline a
+ specific technical aspect.
  It also spends a few words on the overall performance of the rendering,
  including some stress-testing.
 \end_layout
@@ -855,8 +855,8 @@ For the purposes of this project, it should also be noted that the Ward
 \begin_inset Formula $h$
 \end_inset
 
-, doesn't offer an explicit distribution function for the said vectors,
- which would be useful in a Monte-Carlo setting (as pointed in
+, doesn't offer an explicit distribution function for said vectors, which
+ would be useful in a Monte-Carlo setting (as pointed in
 \begin_inset space ~
 \end_inset
 
@@ -1037,12 +1037,12 @@ From vertex-level to fragment-level detail
 
 \begin_layout Standard
 It is common in computer graphics to want to obtain a certain level of detail
- on the rendered surface without having to indeterminately increase the
- resolution of the underlying mesh.
+ on the rendered surface without having to indefinitely increase the resolution
+ of the underlying mesh.
  This is most common in the texturing of a 3D model: the values of the color
- attribute attribute are removed from the vertices and given to a proxy,
- which in the case of UV-mapping (a common technique addressing the issue)
- is an image whose pixels (named texels) are accessed by their coordinates.
+ attribute are removed from the vertices and given to a proxy, which in
+ the case of UV-mapping (a common technique addressing the issue) is an
+ image whose pixels (named texels) are accessed by their coordinates.
  The vertices then store their (u,v) position on such image and rasterization
  takes care of interpolating the attribute over the faces of the mesh.
 \end_layout
@@ -1095,8 +1095,8 @@ small
 
 \begin_layout Standard
 UV-mapping is what provides fragment-level precision (albeit with fixed
- resolution) to all of the calculations we are tasked to perform when implementi
-ng illumination models.
+ resolution) to all of the calculations we are required to perform when
+ implementing illumination models.
  It is a very powerful instrument in real-time rendering, and one whose
  preservation is the main driving factor behind many of the (hardest) implementa
 tion choices when treating Environment Mapping in section
@@ -1148,7 +1148,7 @@ normal
 \emph on
 outwards-pointing
 \emph default
- in the case of a 2-manifold closed mesh)
+ in the case of a 2-manifold closed mesh).
 \end_layout
 
 \begin_layout Standard
@@ -1184,7 +1184,8 @@ bitangent
 \begin_inset Formula $\mathbf{b}$
 \end_inset
 
- vectors that form the basis of the tangent plane, to obtain an actual 
+ vectors that form the basis of the tangent plane, in order to obtain an
+ actual 
 \begin_inset Formula $(\mathbf{t},\mathbf{b},\mathbf{n})$
 \end_inset
 
@@ -1280,7 +1281,7 @@ are only orthogonal if the UV-mapping is conformal (i.
  it preserves angles) and even so, they are unit vectors only if the mapping
  is an isometry (i.
  e.
- it preserves distances), which it rarely is.
+ it preserves distances), which it rarely happens to be.
 \end_layout
 
 \begin_layout Standard
@@ -1347,7 +1348,7 @@ The idea behind this method is that we can mimic the appearance of bumps
 \end_layout
 
 \begin_layout Standard
-The image value of the normal vector is store directly at coordinates (u,v)
+The image value of the normal vector is stored directly at coordinates (u,v)
  of the lookup texture, making the implementation of the mapping a straight
  texture read performed in the 
 \begin_inset Formula $\mathtt{fragment\,shader}$
@@ -1358,8 +1359,8 @@ The image value of the normal vector is store directly at coordinates (u,v)
 
 \begin_layout Standard
 The value of the normal at each point is then used to perform lighting calculati
-ons againts view and light vectors (in this implementation, all of them
- are first mapped to tangent space).
+ons along with view and light vectors (in this implementation, all of the
+ latter are first mapped to tangent space).
 \end_layout
 
 \begin_layout Standard
@@ -1504,8 +1505,8 @@ small
 \begin_inset Quotes erd
 \end_inset
 
- perturbations about the mesh normal, so each texel stores a vector value
- that in tangent space is 
+ perturbations of the mesh normal, so each texel stores a vector value that
+ in tangent space is 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1816,7 +1817,7 @@ Which amounts to solving, for parameters
 \begin_inset Formula $c$
 \end_inset
 
-, the nonlinear system:
+, the quadratic system:
 \begin_inset Formula 
 \[
 \begin{cases}
@@ -1881,9 +1882,9 @@ Having no need to store a
 \begin_inset Formula $(a,b,c)$
 \end_inset
 
- in a texture, just like a normal map and most importantly with exactly
- the same impact on memory, but with information ready to compute the whole
- perturbed tangent space.
+ in a texture: just like a normal map and most importantly with exactly
+ the same impact on memory, but now with sufficient information to quickly
+ compute the whole perturbed tangent space.
 \end_layout
 
 \begin_layout Standard
@@ -2358,8 +2359,8 @@ This subsection focuses on how to describe an arbitrary tangent plane rotation
 \begin_inset Formula $r^{\top}$
 \end_inset
 
-, how to implement it in the shader and how to compose it with other transformat
-ions like tangent space perturbations discussed before.
+, how to implement it in a shader and how to compose it with other transformatio
+ns like tangent space perturbations discussed before.
 \end_layout
 
 \begin_layout Standard
@@ -2455,8 +2456,8 @@ Two paths can be followed to rotate
 \end_inset
 
  axis.
- This however would require calculating goniometric functions and matrix
- multiplication in the fragment shader.
+ This would however require calculating goniometric functions and performing
+ matrix multiplication in the fragment shader.
 \end_layout
 
 \begin_layout Standard
@@ -2478,7 +2479,7 @@ The two nontrivial components: a tangent vector always has its third component
 \begin_inset Formula $\mathtt{fragment\,shader}$
 \end_inset
 
- as they are to compute the modified 
+ as they are, in order to compute the modified 
 \begin_inset Formula $\mathbf{t}$
 \end_inset
 
@@ -2645,7 +2646,7 @@ float n = 1.0; // orthogonal roughness, i.e.
 \begin_layout Plain Layout
 In direct-light anisotropic renderings, the full TPR/roughness mapping can
  be tailor-made to achieve a wider range of effects, albeit sacrificing
- the beauty of environment mapping
+ the beauty afforded by environment mapping
 \end_layout
 
 \begin_layout Plain Layout
@@ -2664,7 +2665,7 @@ A different use for the same tool would be to help artists authoring complex
  cramming and rotating them to make use of the most possible space.
  To maintain correct anisotropy, the orientation of these mapped regions
  would be constrained to a fixed direction, introducing issues when cramming
- them.
+ happens.
  Through the use of a parallel TPR texture, instead, the artist is allowed
  to rotate each mapped mesh component as needed, letting TPR manage the
  issue of anisotropy directions on the surface of the model.
@@ -2683,7 +2684,8 @@ A different use for the same tool would be to help artists authoring complex
 \end_layout
 
 \begin_layout Standard
-The results of this process are shown in figure
+The results of this process, as well as the result of composing quaternion
+ and TPR mapping on the same model, are shown in figure
 \begin_inset space ~
 \end_inset
 
@@ -2697,8 +2699,7 @@ noprefix "false"
 
 \end_inset
 
-, as well as the result of composing quaternion and TPR mapping on the same
- model.
+.
  Composing the effects is actually really simple, since rotations (in this
  case in three dimensions) are linear transformations.
  This lets us apply bump mapping straight to the rotated 
@@ -2926,7 +2927,7 @@ status open
 There is a geometric way to compensate this effect, but it would involve
  computing the riemannian metric of the immersed surface (the first fundamental
  form), which could easily be done for any UV-mapping.
- This is however outside the scope of this project and it wasn't implemented.
+ This is however outside the scope of this project and wasn't implemented.
 \end_layout
 
 \end_inset
@@ -2942,7 +2943,7 @@ I implemented this method based on
 
 \begin_inset CommandInset citation
 LatexCommand cite
-key "key-3"
+key "key-1"
 literal "false"
 
 \end_inset
@@ -2994,7 +2995,7 @@ noprefix "false"
 \begin_inset Float figure
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -3017,7 +3018,7 @@ name "fig:Parallax-Occlusion-Mapping"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 
@@ -3045,10 +3046,14 @@ heightScale = 0
 \end_inset
 
 
+\begin_inset space \hspace*{\fill}
+\end_inset
+
+
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \begin_inset Graphics
@@ -3072,10 +3077,14 @@ heightScale = 0.1
 \end_inset
 
 
+\begin_inset space \hspace*{\fill}
+\end_inset
+
+
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 
@@ -3245,8 +3254,8 @@ literal "false"
 status open
 
 \begin_layout Plain Layout
-The Epic Games paper is itself a real-time adaption of a Disney paper, but
- I think it's best to limit excessive reference meandering
+The Epic Games paper is itself a real-time adaptation of a Disney paper,
+ but I believe it best to limit excessive reference meandering
 \end_layout
 
 \end_inset
@@ -3306,8 +3315,8 @@ noprefix "false"
 \begin_inset Formula $F_{0}$
 \end_inset
 
-, the Fresnel reflectance at normal incidence, whose value can be set and
- passed to the 
+, the Fresnel reflectance at normal incidence, whose value can later be
+ set and passed to the 
 \begin_inset Formula $\mathtt{fragment\,shader}$
 \end_inset
 
@@ -3417,7 +3426,7 @@ noprefix "false"
 
 , would both need to be 4D textures to accomodate roughness dependance.
  This is an absurd requirement in terms of storage space occupancy that
- cannot be satisfied in any way at high enough texture resolution.
+ cannot be satisfied in any way at meaningfully high texture resolutions.
 \end_layout
 
 \begin_layout Enumerate
@@ -3595,7 +3604,7 @@ Diffuse Component
 
 \begin_layout Standard
 The diffuse lighting component is not affected by anisotropy, which means
- that the radiance integration can be performed following 
+ that the radiance integration can be performed following step by step 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "key-1"
@@ -3612,7 +3621,7 @@ literal "false"
 
 \end_inset
 
-, step by step.
+.
 \end_layout
 
 \begin_layout Standard
@@ -3785,8 +3794,8 @@ Previous versions were point-light-based instead of environment-mapped,
 
 \begin_layout Standard
 The reason behind this choice is mainly due to the fact that environment
- mapping looks the best in a physically based setting, which immediately
- eliminates the Heidrich-Seidel model from the picture.
+ mapping looks best in a physically based setting, which immediately eliminates
+ the Heidrich-Seidel model from the picture.
 \end_layout
 
 \begin_layout Standard
@@ -4764,7 +4773,7 @@ Substituting the current form of the Ashikhmin-Shirley BRDF and setting
 \begin_inset Formula $\chi(\mathbf{v},\mathbf{h})=(1-(\mathbf{vh}))^{5}$
 \end_inset
 
-we obtain:
+ we obtain:
 \end_layout
 
 \begin_layout Standard
@@ -4831,12 +4840,12 @@ b(\mathbf{v}) & =\int_{\mathbf{l}}p_{l}(\mathbf{l})\chi(\mathbf{v},\mathbf{h})\f
 \end_layout
 
 \begin_layout Standard
-Which, performing Monte-Carlo integration with importance sampling and sample
- half-vectors 
+Performing Monte-Carlo integration with importance sampling and sample half-vect
+ors 
 \begin_inset Formula $\left\{ \mathbf{h_{\mathit{i}}}\right\} _{i=1}^{N}$
 \end_inset
 
-, becomes:
+, these integrals are approximated as:
 \end_layout
 
 \begin_layout Standard
@@ -5771,6 +5780,17 @@ Preprocessing programs also include
 \end_inset
 
  to save texture files as images.
+\end_layout
+
+\begin_layout Standard
+The version of OpenGL used by the main application is OpenGL 4.1 core.
+ This ensures full support for subroutines and subroutine uniforms in the
+ shader program.
+\end_layout
+
+\begin_layout Standard
+Other shaders which don't require the implementation of subroutines are
+ written in OpenGL 3.3 core.
 \end_layout
 
 \begin_layout Subsection
@@ -6869,14 +6889,14 @@ Performance and Quality analysis
 \begin_layout Standard
 The final rendering works as intended, having anisotropic illumination models
  work with bump mapping, tangent plane rotation and environment mapping.
- It achieves a good level of realism, as shown in the pictures above and
+ It achieves a good level of realism, as shown in the pictures above, and
  runs pretty smoothly in a real-time application.
 \end_layout
 
 \begin_layout Standard
 The main factor affecting performance is definitely the residual part of
  numerical integration having to be performed in the fragment shader.
- This implies that the rendering can run pretty smoothly on models contributing
+ This implies that the rendering can run quite smoothly on models contributing
  to a limited fraction of the total fragments (i.e.
  little screen space), even with a high number of samples (in the order
  of the hundreds).
@@ -6894,7 +6914,7 @@ The main factor affecting performance is definitely the residual part of
 \end_layout
 
 \begin_layout Standard
-On a computer running on a NVidia Geforce 770 GTX with 2GB of RAM on a fullscree
+On a computer running on a NVidia Geforce GTX 770 with 2GB of RAM on a fullscree
 n 1080p display, the frame rate remains capped at 60 FPS while rendering
  (with 200 samples) a model in the middle of the screen covering roughly
  an eighth of the total screen space.
